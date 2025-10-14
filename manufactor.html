@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MTG Token Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: sans-serif;
+  background: #111;
+  color: white;
+  padding: 8px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
+
+.effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.effects label {
+  font-size: 0.85em;
+  background: #222;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.create-controls {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.create-controls select,
+.create-controls input { padding: 4px; font-size: 1em; width: 80px; }
+.create-controls button { padding: 5px 10px; }
+
+#tokens {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.token {
+  width: 100%;
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.token-header {
+  font-size: 2em;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.big-blue { color: #5cc8ff; }
+.big-green { color: #8cff87; }
+.big-gold { color: gold; }
+
+/* New single-line tappable ± block */
+.token-line {
+  position: relative;
+  background-color: #333;
+  border: 1px solid #666;
+  border-radius: 12px;
+  margin-bottom: 4px;
+  height: 40px;
+  display: flex;
+  cursor: pointer;
+  user-select: none;
+  align-items: center; /* vertical centering */
+}
+.token-line .decrease,
+.token-line .increase {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+.token-line .center-count {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+  pointer-events: none;
+  font-size: 1em;
+  top: 50%;
+  transform: translateY(-50%); /* vertical center */
+}
+
+.tap-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.control-panel {
+  text-align: center;
+  margin: 10px 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 500px) {
+  .token-header { font-size: 2em; }
+  .token-line { font-size: 1em; height: 36px; }
+}
+</style>
+</head>
+<body>
+
+<h1>MTG Token Tracker</h1>
+
+<div class="effects">
+  <label><input type="checkbox" id="adrix"> Adrix & Nev</label>
+  <label><input type="checkbox" id="manufactor"> Academy Manufactor</label>
+  <label><input type="checkbox" id="peregrin"> Peregrin Took</label>
+  <label><input type="checkbox" id="vending"> Vending Machine</label>
+</div>
+
+<div class="create-controls">
+  <select id="createType">
+    <option value="clue">Clue</option>
+    <option value="food">Food</option>
+    <option value="treasure">Treasure</option>
+  </select>
+  <input type="number" id="createAmount" value="1" min="1">
+  <button onclick="createTokens()">➕ Create</button>
+</div>
+
+<div id="tokens"></div>
+
+<div class="control-panel">
+  <button onclick="untapAll()">🔓 Untap All</button>
+  <button onclick="resetAll()">🔄 Reset All</button>
+</div>
+
+<script>
+const tokenTypes = ['clue','food','treasure'];
+const state = { clue:{untapped:0,tapped:0}, food:{untapped:0,tapped:0}, treasure:{untapped:0,tapped:0} };
+
+// Update UI
+function updateUI(){
+  const container = document.getElementById('tokens');
+  container.innerHTML = '';
+  tokenTypes.forEach(type=>{
+    const token = state[type];
+    const color = type==='clue'?'big-blue':type==='food'?'big-green':'big-gold';
+    const div = document.createElement('div');
+    div.className='token';
+    div.innerHTML = `
+      <div class="token-header ${color}">${token.untapped+token.tapped} ${type.toUpperCase()}S</div>
+
+      <div class="token-line">
+        <div class="decrease" onclick="adjust('${type}','untapped',-1)">&minus;</div>
+        <div class="increase" onclick="adjust('${type}','untapped',1)">&plus;</div>
+        <div class="center-count">${token.untapped} Untapped</div>
+      </div>
+
+      <div class="token-line">
+        <div class="decrease" onclick="adjust('${type}','tapped',-1)">&minus;</div>
+        <div class="increase" onclick="adjust('${type}','tapped',1)">&plus;</div>
+        <div class="center-count">${token.tapped} Tapped</div>
+      </div>
+
+      <div class="tap-controls">
+        <button onclick="tap('${type}')">Tap</button>
+        <button onclick="untap('${type}')">Untap</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Token creation per event (toggles apply once per creation event)
+function runTokenCreation(tokens){
+  const adrix = document.getElementById('adrix').checked;
+  const manufactor = document.getElementById('manufactor').checked;
+  const peregrin = document.getElementById('peregrin').checked;
+  const vending = document.getElementById('vending').checked;
+
+  tokens.forEach(tok=>{
+    let created = [{...tok}];
+
+    if(manufactor && ['clue','food','treasure'].includes(tok.type)){
+      created = [
+        {type:'clue', tapped:tok.tapped, source:'manufactor'},
+        {type:'food', tapped:tok.tapped, source:'manufactor'},
+        {type:'treasure', tapped:tok.tapped, source:'manufactor'}
+      ];
+    }
+
+    if(adrix){
+      created = [...created, ...created.map(t=>({...t}))];
+    }
+
+    // Peregrin Took creates a food matching tapped state of parent
+    if(peregrin && tok.source!=='sacrifice'){
+      created.push({type:'food', tapped:tok.tapped, source:'peregrin'});
+    }
+
+    created.forEach(t=>{
+      state[t.type][t.tapped?'tapped':'untapped']++;
+    });
+
+    // Vending Machine triggers for Food sacrificed
+    created.forEach(t=>{
+      if(t.source==='sacrifice' && t.type==='food' && vending){
+        runTokenCreation([{type:'treasure', tapped:true, source:'vending'}]);
+      }
+    });
+  });
+}
+
+// Handle ± adjustments
+function adjust(type,stateType,delta){
+  if(delta>0){
+    runTokenCreation([{type:type, tapped:stateType==='tapped', source:'manual'}]);
+  } else {
+    if(state[type][stateType]>0){
+      state[type][stateType]--;
+      // Only trigger Vending Machine for food sacrifice
+      if(type==='food'){
+        const vending = document.getElementById('vending').checked;
+        if(vending){
+          runTokenCreation([{type:'treasure', tapped:true, source:'vending'}]);
+        }
+      }
+    }
+  }
+  updateUI();
+}
+
+function tap(type){
+  if(state[type].untapped>0){
+    state[type].untapped--;
+    state[type].tapped++;
+    updateUI();
+  }
+}
+
+function untap(type){
+  if(state[type].tapped>0){
+    state[type].tapped--;
+    state[type].untapped++;
+    updateUI();
+  }
+}
+
+function createTokens(){
+  const type = document.getElementById('createType').value;
+  const amount = parseInt(document.getElementById('createAmount').value,10);
+  if(amount<=0) return;
+  runTokenCreation(Array.from({length:amount},()=>({type:type,tapped:false,source:'manual'})));
+  updateUI();
+}
+
+function untapAll(){
+  tokenTypes.forEach(type=>{
+    state[type].untapped += state[type].tapped;
+    state[type].tapped=0;
+  });
+  updateUI();
+}
+
+function resetAll(){
+  tokenTypes.forEach(type=>{
+    state[type].untapped=0;
+    state[type].tapped=0;
+  });
+  ['adrix','manufactor','peregrin','vending'].forEach(id=>{
+    document.getElementById(id).checked=false;
+  });
+  updateUI();
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
