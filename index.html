@@ -74,7 +74,6 @@ h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
 .big-green { color: #8cff87; }
 .big-gold { color: gold; }
 
-/* New single-line tappable ± block */
 .token-line {
   position: relative;
   background-color: #333;
@@ -85,7 +84,7 @@ h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
   display: flex;
   cursor: pointer;
   user-select: none;
-  align-items: center; /* vertical centering */
+  align-items: center;
 }
 .token-line .decrease,
 .token-line .increase {
@@ -105,7 +104,7 @@ h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
   pointer-events: none;
   font-size: 1em;
   top: 50%;
-  transform: translateY(-50%); /* vertical center */
+  transform: translateY(-50%);
 }
 
 .tap-controls {
@@ -151,7 +150,6 @@ h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
   <button onclick="createTokens()">➕ Create</button>
 </div>
 
-  
 <div id="tokens"></div>
 
 <div class="control-panel">
@@ -159,12 +157,74 @@ h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
   <button onclick="resetAll()">🔄 Reset All</button>
 </div>
 
-
 <script>
 const tokenTypes = ['clue','food','treasure'];
 const state = { clue:{untapped:0,tapped:0}, food:{untapped:0,tapped:0}, treasure:{untapped:0,tapped:0} };
 
-// Update UI
+// ✅ Fully rules-accurate token creation engine
+function runTokenCreation(tokens) {
+  const adrix = document.getElementById('adrix').checked;
+  const manufactor = document.getElementById('manufactor').checked;
+  const peregrin = document.getElementById('peregrin').checked;
+  const vending = document.getElementById('vending').checked;
+
+  let allCreated = [];
+
+  // Step 1: Handle Manufactor and Adrix for initial tokens
+  tokens.forEach(tok => {
+    let created = [{ ...tok }];
+
+    if (manufactor && ['clue', 'food', 'treasure'].includes(tok.type)) {
+      created = [
+        { type: 'clue', tapped: tok.tapped, source: 'manufactor' },
+        { type: 'food', tapped: tok.tapped, source: 'manufactor' },
+        { type: 'treasure', tapped: tok.tapped, source: 'manufactor' }
+      ];
+    }
+
+    if (adrix) {
+      created = [...created, ...created.map(t => ({ ...t }))];
+    }
+
+    allCreated.push(...created);
+  });
+
+  // Step 2: Peregrin Took (once per event)
+  if (peregrin && tokens.some(t => t.source !== 'sacrifice')) {
+    const allTapped = tokens.every(t => t.tapped);
+    let peregrinBatch = [{ type: 'food', tapped: allTapped, source: 'peregrin' }];
+
+    // Manufactor applies to Peregrin Took’s Food
+    if (manufactor) {
+      peregrinBatch = [
+        { type: 'clue', tapped: allTapped, source: 'peregrin+manufactor' },
+        { type: 'food', tapped: allTapped, source: 'peregrin+manufactor' },
+        { type: 'treasure', tapped: allTapped, source: 'peregrin+manufactor' }
+      ];
+    }
+
+    // Adrix doubles Peregrin Took’s batch
+    if (adrix) {
+      peregrinBatch = [...peregrinBatch, ...peregrinBatch.map(t => ({ ...t }))];
+    }
+
+    allCreated.push(...peregrinBatch);
+  }
+
+  // Step 3: Apply to state
+  allCreated.forEach(t => {
+    state[t.type][t.tapped ? 'tapped' : 'untapped']++;
+  });
+
+  // Step 4: Vending Machine triggers
+  allCreated.forEach(t => {
+    if (t.source === 'sacrifice' && t.type === 'food' && vending) {
+      runTokenCreation([{ type: 'treasure', tapped: true, source: 'vending' }]);
+    }
+  });
+}
+
+// UI and interaction handlers
 function updateUI(){
   const container = document.getElementById('tokens');
   container.innerHTML = '';
@@ -197,54 +257,12 @@ function updateUI(){
   });
 }
 
-// Token creation per event (toggles apply once per creation event)
-function runTokenCreation(tokens){
-  const adrix = document.getElementById('adrix').checked;
-  const manufactor = document.getElementById('manufactor').checked;
-  const peregrin = document.getElementById('peregrin').checked;
-  const vending = document.getElementById('vending').checked;
-
-  tokens.forEach(tok=>{
-    let created = [{...tok}];
-
-    if(manufactor && ['clue','food','treasure'].includes(tok.type)){
-      created = [
-        {type:'clue', tapped:tok.tapped, source:'manufactor'},
-        {type:'food', tapped:tok.tapped, source:'manufactor'},
-        {type:'treasure', tapped:tok.tapped, source:'manufactor'}
-      ];
-    }
-
-    if(adrix){
-      created = [...created, ...created.map(t=>({...t}))];
-    }
-
-    // Peregrin Took creates a food matching tapped state of parent
-    if(peregrin && tok.source!=='sacrifice'){
-      created.push({type:'food', tapped:tok.tapped, source:'peregrin'});
-    }
-
-    created.forEach(t=>{
-      state[t.type][t.tapped?'tapped':'untapped']++;
-    });
-
-    // Vending Machine triggers for Food sacrificed
-    created.forEach(t=>{
-      if(t.source==='sacrifice' && t.type==='food' && vending){
-        runTokenCreation([{type:'treasure', tapped:true, source:'vending'}]);
-      }
-    });
-  });
-}
-
-// Handle ± adjustments
 function adjust(type,stateType,delta){
   if(delta>0){
     runTokenCreation([{type:type, tapped:stateType==='tapped', source:'manual'}]);
   } else {
     if(state[type][stateType]>0){
       state[type][stateType]--;
-      // Only trigger Vending Machine for food sacrifice
       if(type==='food'){
         const vending = document.getElementById('vending').checked;
         if(vending){
@@ -304,8 +322,3 @@ updateUI();
 
 </body>
 </html>
-
-
-
-
-
