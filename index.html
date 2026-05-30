@@ -33,7 +33,10 @@ body{
   font-family:'Cinzel',serif;font-size:0.85rem;
   letter-spacing:0.25em;font-weight:900;white-space:nowrap;
 }
-.topbar-right{display:flex;gap:6px;margin-left:auto;align-items:center;}
+.topbar-center{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.topbar-right{display:flex;gap:6px;align-items:center;}
 .tbar-btn{
   height:34px;padding:0 12px;border-radius:8px;
   border:1px solid rgba(255,255,255,0.15);
@@ -53,12 +56,15 @@ body{
 .tbar-select,.tbar-input{
   height:34px;border-radius:8px;
   border:1px solid rgba(255,255,255,0.15);
-  background:rgba(255,255,255,0.05);
+  background:#1a1e26;
   color:#e8e4dc;font-family:'Cinzel',serif;font-size:0.58rem;
   letter-spacing:0.07em;outline:none;-webkit-appearance:none;
   padding:0 8px;cursor:pointer;
 }
-.tbar-select{width:90px;}
+.tbar-select option{
+  background:#1a1e26;color:#e8e4dc;
+}
+.tbar-select{width:100px;}
 .tbar-input{width:42px;text-align:center;}
 .tbar-input::-webkit-inner-spin-button{-webkit-appearance:none;}
 .mod-pips{display:flex;gap:3px;align-items:center;}
@@ -173,33 +179,35 @@ body{
   position:relative;z-index:1;pointer-events:none;
   text-align:center;
   font-family:'Cinzel',serif;
-  font-size:clamp(0.36rem,0.85vw,0.52rem);
-  letter-spacing:0.12em;
-  color:rgba(255,255,255,0.15);
-  margin-top:2px;
+  font-size:clamp(0.5rem,1.1vw,0.7rem);
+  letter-spacing:0.15em;
+  color:rgba(255,255,255,0.35);
+  margin-top:3px;
 }
-.tok-card.lit .tok-state-lbl{color:rgba(255,255,255,0.25);}
+.tok-card.lit .tok-state-lbl{color:rgba(255,255,255,0.6);}
 
 /* ── MIDDLE ROW: tap / untap buttons ── */
 .tok-mid{
   flex-shrink:0;
-  display:flex;gap:3px;padding:3px 4px;
-  background:rgba(0,0,0,0.25);
-  border-top:1px solid rgba(255,255,255,0.05);
-  border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex;gap:4px;padding:4px 5px;
+  background:rgba(0,0,0,0.35);
+  border-top:1px solid rgba(255,255,255,0.07);
+  border-bottom:1px solid rgba(255,255,255,0.07);
 }
 .mid-btn{
-  flex:1;height:22px;border-radius:5px;
-  border:1px solid rgba(255,255,255,0.1);
-  background:rgba(255,255,255,0.04);
-  color:rgba(255,255,255,0.35);
+  flex:1;height:28px;border-radius:6px;
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.07);
+  color:rgba(255,255,255,0.7);
   font-family:'Cinzel',serif;
-  font-size:clamp(0.36rem,0.8vw,0.5rem);
-  letter-spacing:0.07em;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:3px;
+  font-size:clamp(0.42rem,0.95vw,0.6rem);
+  letter-spacing:0.08em;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:4px;
 }
-.mid-btn:active{background:rgba(255,255,255,0.12);}
-.mid-btn .arrow{font-size:0.7em;}
+.mid-btn:active{background:rgba(255,255,255,0.18);}
+.mtg-sym{
+  display:inline-block;width:14px;height:14px;flex-shrink:0;
+}
 
 /* no flash animation */
 
@@ -294,7 +302,7 @@ body{
 
 <div class="topbar">
   <div class="topbar-title">MANUFACTOR</div>
-  <div class="topbar-right">
+  <div class="topbar-center">
     <select id="createType" class="tbar-select">
       <option value="clue">Clue</option>
       <option value="food">Food</option>
@@ -303,6 +311,8 @@ body{
     </select>
     <input type="number" id="createAmt" class="tbar-input" value="1" min="1" max="99">
     <button class="tbar-btn create" onclick="bulkCreate()">CREATE</button>
+  </div>
+  <div class="topbar-right">
     <button class="tbar-btn untap" onclick="untapAll()">☀ UNTAP</button>
     <button class="tbar-btn" onclick="openDrawer()">
       MODS <div class="mod-pips" id="modPips"></div>
@@ -335,7 +345,7 @@ var META = {
   clue:     { label:'Clue',     c:'#60b4e8', isArt:true,  img:'img/clue-token.jpg'     },
   food:     { label:'Food',     c:'#e8a87c', isArt:true,  img:'img/food-token.jpg'     },
   treasure: { label:'Treasure', c:'#4ecba8', isArt:true,  img:'img/treasure-token.jpg' },
-  mutagen:  { label:'Mutagen',  c:'#5dde6a', isArt:false, img:'img/mutagen-token.jpg'  },
+  mutagen:  { label:'Mutagen',  c:'#b87ee8', isArt:false, img:'img/mutagen-token.jpg'  },
 };
 var MODS = [
   { id:'adrix',      name:'Adrix & Nev',           mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg' },
@@ -570,11 +580,11 @@ function buildGrid() {
     mid.className = 'tok-mid';
     var tapBtn = document.createElement('button');
     tapBtn.className = 'mid-btn';
-    tapBtn.innerHTML = '<span class="arrow">↷</span> TAP';
+    tapBtn.innerHTML = '<svg class="mtg-sym" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 4 L20 12 L12 20 L4 12 Z"/><path d="M12 4 L12 20" stroke-width="1.5" stroke-dasharray="2 2"/></svg>TAP';
     (function(t){ tapBtn.onclick = function(e){ e.stopPropagation(); tapTokens(t); }; })(type);
     var untapBtn = document.createElement('button');
     untapBtn.className = 'mid-btn';
-    untapBtn.innerHTML = '<span class="arrow">↺</span> UNTAP';
+    untapBtn.innerHTML = '<svg class="mtg-sym" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20 L20 12 L12 4 L4 12 Z"/><path d="M12 20 L12 4" stroke-width="1.5" stroke-dasharray="2 2"/></svg>UNTAP';
     (function(t){ untapBtn.onclick = function(e){ e.stopPropagation(); untapTokens(t); }; })(type);
     mid.appendChild(tapBtn);
     mid.appendChild(untapBtn);
