@@ -25,25 +25,35 @@ body{
 /* ── TOP BAR ── */
 .topbar{
   display:flex;align-items:center;flex-wrap:wrap;
-  padding:0 10px;min-height:44px;
+  padding:0 8px;min-height:44px;
   border-bottom:1px solid rgba(255,255,255,0.07);
-  flex-shrink:0;gap:6px;
+  flex-shrink:0;gap:4px;
 }
 .topbar-title{
   font-family:'Cinzel',serif;font-size:0.85rem;
   letter-spacing:0.25em;font-weight:900;white-space:nowrap;
+  flex-shrink:0;
 }
 .topbar-center{
-  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  flex:1;display:flex;align-items:center;justify-content:center;gap:4px;
   min-width:0;
 }
-.topbar-right{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.topbar-right{display:flex;gap:4px;align-items:center;flex-shrink:0;}
 
-/* Portrait: title on its own row, center+right share second row */
+/* Portrait: 3 rows — title / create / untap+mods */
 @media(max-aspect-ratio:1/1){
-  .topbar{padding:6px 10px;}
-  .topbar-title{width:100%;text-align:center;padding:2px 0;}
-  .topbar-center{justify-content:center;}
+  .topbar{padding:5px 8px;flex-wrap:wrap;}
+  .topbar-title{width:100%;text-align:center;order:1;}
+  .topbar-center{order:2;width:100%;justify-content:center;}
+  .topbar-right{order:3;width:100%;justify-content:center;padding-bottom:3px;}
+}
+
+/* Narrow: shrink everything */
+@media(max-width:500px){
+  .topbar-title{font-size:0.7rem;letter-spacing:0.15em;}
+  .tbar-btn{padding:0 8px;font-size:0.52rem;}
+  .tbar-select{width:80px;font-size:0.52rem;}
+  .tbar-input{width:36px;font-size:0.52rem;}
 }
 .tbar-btn{
   height:34px;padding:0 12px;border-radius:8px;
