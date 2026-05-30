@@ -405,14 +405,13 @@ function stopRepeat(type, sk) {
 }
 
 // ── Creation engine ───────────────────────────────────────────────
-function runCreate(tokens, fromSac) {
-  fromSac = fromSac || false;
+function runCreate(tokens, fromVending) {
+  fromVending = fromVending || false;
   var tapped = tokens.every(function(t){ return t.tapped; });
   var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
-  if (!fromSac) {
-    if (modOn.peregrin)  batch.push({ type:'food',    tapped:tapped });
-    if (modOn.donatello) batch.push({ type:'mutagen', tapped:tapped });
-  }
+  // Peregrin and Donatello fire on ALL creation events, including Vending Machine
+  if (modOn.peregrin)  batch.push({ type:'food',    tapped:tapped });
+  if (modOn.donatello) batch.push({ type:'mutagen', tapped:tapped });
   if (modOn.manufactor) {
     var ex = [];
     batch.forEach(function(tok) {
@@ -446,6 +445,9 @@ function doAction(type, sk, delta, doFlash) {
     if (state[type][sk] > 0) {
       state[type][sk]--;
       if (type==='food' && modOn.vending) {
+        // fromVending=true so the treasure created here doesn't loop back into Vending
+        // Note: Peregrin/Donatello DO fire (no longer blocked), but the food
+        // Peregrin adds here is a creation event, not a sacrifice, so Vending won't trigger on it
         runCreate([{ type:'treasure', tapped:true }], true);
       }
     }
