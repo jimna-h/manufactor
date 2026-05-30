@@ -15,492 +15,577 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html{height:100%;}
+html,body{height:100%;overflow:hidden;touch-action:manipulation;user-select:none;}
 body{
   font-family:'Oswald',sans-serif;
-  background:#0c0e11;
-  color:#e8e4dc;
-  height:100dvh;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  touch-action:manipulation;
-  user-select:none;
+  background:#0a0c0f;color:#e8e4dc;
+  height:100dvh;display:flex;flex-direction:column;
 }
 
 /* ── TOP BAR ── */
 .topbar{
-  display:flex;
-  align-items:center;
-  padding:0 8px;
-  height:44px;
-  border-bottom:1px solid rgba(255,255,255,0.08);
-  flex-shrink:0;
-  gap:6px;
+  display:flex;align-items:center;
+  padding:0 10px;height:44px;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  flex-shrink:0;gap:8px;
 }
-.topbar h1{
-  font-family:'Cinzel',serif;
-  font-size:0.9rem;
-  letter-spacing:0.22em;
-  font-weight:900;
-  white-space:nowrap;
+.topbar-title{
+  font-family:'Cinzel',serif;font-size:0.85rem;
+  letter-spacing:0.25em;font-weight:900;white-space:nowrap;
 }
-.create-row{
-  display:flex;align-items:center;gap:5px;flex:1;justify-content:center;
-}
-.create-row select,
-.create-row input{
-  background:#1a1e24;border:1px solid rgba(255,255,255,0.14);
-  border-radius:7px;color:#e8e4dc;font-family:'Oswald',sans-serif;
-  font-size:0.85rem;padding:4px 7px;outline:none;height:32px;-webkit-appearance:none;
-}
-.create-row select{width:120px;}
-.create-row input{width:46px;text-align:center;}
-.create-row input::-webkit-inner-spin-button{-webkit-appearance:none;}
-.btn-sm{
-  height:32px;padding:0 10px;background:#1a1e24;
-  border:1px solid rgba(255,255,255,0.18);border-radius:7px;
+.topbar-right{display:flex;gap:6px;margin-left:auto;align-items:center;}
+.tbar-btn{
+  height:34px;padding:0 12px;border-radius:8px;
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
   color:#e8e4dc;font-family:'Cinzel',serif;font-size:0.58rem;
-  letter-spacing:0.09em;cursor:pointer;white-space:nowrap;flex-shrink:0;
+  letter-spacing:0.1em;cursor:pointer;white-space:nowrap;
+  display:flex;align-items:center;gap:6px;
 }
-.btn-sm:active{background:#2a3040;}
-
-/* untap-all always visible */
-.btn-untap{
-  height:32px;padding:0 10px;
-  background:rgba(96,180,232,0.12);
-  border:1px solid rgba(96,180,232,0.35);
-  border-radius:7px;
-  color:#60b4e8;font-family:'Cinzel',serif;font-size:0.58rem;
-  letter-spacing:0.09em;cursor:pointer;white-space:nowrap;flex-shrink:0;
+.tbar-btn:active{background:rgba(255,255,255,0.12);}
+.tbar-btn.untap{
+  background:rgba(96,180,232,0.1);border-color:rgba(96,180,232,0.4);color:#60b4e8;
 }
-.btn-untap:active{background:rgba(96,180,232,0.25);}
+.tbar-btn.untap:active{background:rgba(96,180,232,0.22);}
+.mod-pips{display:flex;gap:3px;align-items:center;}
+.mod-pip{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1);}
+.mod-pip.on{background:#e8c84b;}
 
-.mod-indicator{display:flex;gap:3px;align-items:center;}
-.mod-pip{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.1);}
-.mod-pip.on{background:#e8b84b;}
-
-/* ── TOKEN GRID ── */
+/* ── GRID ── */
 .grid{
   flex:1;display:grid;
-  grid-template-columns:repeat(5,1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:5px;padding:5px;min-height:0;
 }
-@media(max-aspect-ratio:4/5){
-  .grid{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);}
+@media(max-aspect-ratio:1/1){
+  .grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);}
 }
 
 /* ── TOKEN CARD ── */
 .tok-card{
-  background:#11141a;border:1.5px solid rgba(255,255,255,0.07);
-  border-radius:11px;display:flex;flex-direction:column;
+  background:#0f1218;
+  border:1.5px solid rgba(255,255,255,0.07);
+  border-radius:13px;
+  display:flex;flex-direction:column;
   overflow:hidden;position:relative;
 }
 .tok-card.lit{border-color:var(--c);}
 
-.tok-label{
-  display:flex;align-items:center;justify-content:center;gap:4px;
-  padding:3px 5px 1px;font-family:'Cinzel',serif;font-size:0.55rem;
-  letter-spacing:0.14em;color:rgba(255,255,255,0.28);flex-shrink:0;
+/* Art fills the full card behind everything */
+.tok-art{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  opacity:0;
+  transition:opacity 0.3s;
+  pointer-events:none;
+  z-index:0;
 }
-.tok-card.lit .tok-label{color:var(--c);}
-.tok-icon{font-size:0.8rem;line-height:1;}
+.tok-card.lit .tok-art{opacity:0.22;}
 
-/* big total */
-.tok-total{
-  text-align:center;font-size:clamp(2rem,5.5vw,5rem);
-  font-weight:700;color:rgba(255,255,255,0.09);
-  line-height:1;flex-shrink:0;padding:1px 0;
+/* Dark scrim so numbers stay readable over art */
+.tok-scrim{
+  position:absolute;inset:0;
+  background:rgba(8,10,14,0.55);
+  pointer-events:none;
+  z-index:0;
+  opacity:0;
+  transition:opacity 0.3s;
 }
-.tok-card.lit .tok-total{color:var(--c);}
+.tok-card.lit .tok-scrim{opacity:1;}
 
-/* sub-counts */
-.tok-sub{
-  display:flex;justify-content:center;gap:8px;
-  padding:0 4px 2px;flex-shrink:0;
+/* Everything inside the card needs to sit above the art */
+.tok-name,.tok-half,.tok-mid{position:relative;z-index:1;}
+
+/* Token name */
+.tok-name{
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.75rem,1.8vw,1.1rem);
+  letter-spacing:0.18em;
+  color:rgba(255,255,255,0.2);
+  text-align:center;
+  padding:6px 4px 2px;
+  flex-shrink:0;
+  line-height:1;
 }
-.sub-item{display:flex;flex-direction:column;align-items:center;}
-.sub-val{font-size:clamp(0.7rem,1.6vw,1rem);font-weight:400;color:rgba(255,255,255,0.35);line-height:1.1;}
-.sub-lbl{font-size:0.48rem;letter-spacing:0.07em;color:rgba(255,255,255,0.18);text-transform:uppercase;font-family:'Cinzel',serif;}
-.tok-card.lit .sub-val{color:rgba(255,255,255,0.6);}
-.tok-card.lit .sub-lbl{color:rgba(255,255,255,0.28);}
+.tok-card.lit .tok-name{color:var(--c);}
 
-.tok-div{height:1px;background:rgba(255,255,255,0.06);flex-shrink:0;margin:0 6px;}
-
-/* ── BUTTON ZONE ──
-   Layout: 2 columns (ADD | REMOVE), 2 rows (UNTAPPED | TAPPED)
-   Top-left:  ADD UNTAPPED   Top-right:  REMOVE UNTAPPED
-   Bot-left:  ADD TAPPED     Bot-right:  REMOVE TAPPED
-*/
-.tok-btns{
-  flex:1;display:grid;
-  grid-template-columns:1fr 1fr;
-  grid-template-rows:1fr 1fr;
-  gap:3px;padding:3px;min-height:0;
+/* ── HALF: untapped on top, tapped on bottom ── */
+.tok-half{
+  flex:1;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:0;overflow:hidden;
+  cursor:pointer;
 }
-.tbtn{
-  border-radius:7px;border:none;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:1px;cursor:pointer;min-height:28px;
-}
-.tbtn:active{opacity:0.55;transform:scale(0.92);}
+.tok-half.untapped{border-bottom:1px solid rgba(255,255,255,0.06);}
 
-.tbtn-sym{
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(0.9rem,2.2vw,1.7rem);
+/* full-width left/right tap zones, z:0 */
+.tap-zone{
+  position:absolute;top:0;bottom:0;width:50%;
+  z-index:0;touch-action:none;
+  transition:background-color 0.06s;
+}
+.tap-zone.left{left:0;}
+.tap-zone.right{right:0;}
+.tap-zone.left.active{background:rgba(220,70,60,0.22);}
+.tap-zone.right.active{background:rgba(60,200,110,0.2);}
+
+/* Big number, pointer-events none so zones receive touch */
+.tok-num{
+  position:relative;z-index:1;pointer-events:none;
+  font-size:clamp(2.2rem,7vw,6rem);
   font-weight:700;line-height:1;
+  color:rgba(255,255,255,0.08);
+  transition:color 0.15s;
+  text-align:center;
 }
-.tbtn-lbl{
-  font-size:clamp(0.38rem,0.9vw,0.55rem);
-  letter-spacing:0.05em;line-height:1;font-family:'Cinzel',serif;
-  white-space:nowrap;
+.tok-card.lit .tok-num{color:var(--c);}
+
+/* −  + edge hints */
+.tok-hints{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 8px;
+}
+.tok-hint{
+  font-size:clamp(0.9rem,2.5vw,1.8rem);
+  font-weight:900;
+  color:rgba(255,255,255,0.2);
+  line-height:1;
 }
 
-/* ADD column = green-tinted */
-.tbtn.add-un{
-  background:rgba(100,210,100,0.1);
+/* State label — flows in normal document order directly below the number */
+.tok-state-lbl{
+  position:relative;z-index:1;pointer-events:none;
+  text-align:center;
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.36rem,0.85vw,0.52rem);
+  letter-spacing:0.12em;
+  color:rgba(255,255,255,0.15);
+  margin-top:2px;
 }
-.tbtn.add-un .tbtn-sym{color:rgba(140,230,130,0.75);}
-.tbtn.add-un .tbtn-lbl{color:rgba(140,230,130,0.45);}
-.tbtn.add-ta{
-  background:rgba(100,210,100,0.06);
-}
-.tbtn.add-ta .tbtn-sym{color:rgba(140,230,130,0.55);}
-.tbtn.add-ta .tbtn-lbl{color:rgba(140,230,130,0.35);}
+.tok-card.lit .tok-state-lbl{color:rgba(255,255,255,0.25);}
 
-/* REMOVE column = red-tinted */
-.tbtn.rem-un{
-  background:rgba(220,90,80,0.09);
+/* ── MIDDLE ROW: tap / untap buttons ── */
+.tok-mid{
+  flex-shrink:0;
+  display:flex;gap:3px;padding:3px 4px;
+  background:rgba(0,0,0,0.25);
+  border-top:1px solid rgba(255,255,255,0.05);
+  border-bottom:1px solid rgba(255,255,255,0.05);
 }
-.tbtn.rem-un .tbtn-sym{color:rgba(230,120,110,0.7);}
-.tbtn.rem-un .tbtn-lbl{color:rgba(230,120,110,0.4);}
-.tbtn.rem-ta{
-  background:rgba(220,90,80,0.06);
-}
-.tbtn.rem-ta .tbtn-sym{color:rgba(230,120,110,0.55);}
-.tbtn.rem-ta .tbtn-lbl{color:rgba(230,120,110,0.35);}
-
-/* lit-card brightens buttons slightly */
-.tok-card.lit .tbtn.add-un{background:color-mix(in srgb,var(--c) 14%,rgba(80,200,80,0.1));}
-.tok-card.lit .tbtn.add-ta{background:color-mix(in srgb,var(--c) 8%,rgba(80,200,80,0.07));}
-
-/* tap row */
-.tok-taprow{
-  display:flex;gap:3px;padding:0 3px 3px;flex-shrink:0;
-}
-.ttap{
+.mid-btn{
   flex:1;height:22px;border-radius:5px;
-  border:1px solid rgba(255,255,255,0.07);
-  background:rgba(255,255,255,0.03);
-  color:rgba(255,255,255,0.3);font-family:'Cinzel',serif;
-  font-size:0.48rem;letter-spacing:0.07em;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.04);
+  color:rgba(255,255,255,0.35);
+  font-family:'Cinzel',serif;
+  font-size:clamp(0.36rem,0.8vw,0.5rem);
+  letter-spacing:0.07em;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:3px;
 }
-.ttap:active{background:rgba(255,255,255,0.1);}
+.mid-btn:active{background:rgba(255,255,255,0.12);}
+.mid-btn .arrow{font-size:0.7em;}
 
-/* flash */
-@keyframes flashpulse{0%{opacity:0.32;}100%{opacity:0;}}
-.flash-overlay{
-  position:absolute;inset:0;border-radius:9px;
-  background:var(--c,#fff);opacity:0;pointer-events:none;
-  animation:flashpulse 0.32s ease-out forwards;
+/* no flash animation */
+
+/* reset confirm modal */
+.confirm-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:80;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.15s;
+}
+.confirm-backdrop.open{opacity:1;pointer-events:auto;}
+.confirm-box{
+  background:#181c26;border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px;padding:22px 20px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  min-width:220px;
+}
+.confirm-title{
+  font-family:'Cinzel',serif;font-size:0.8rem;
+  letter-spacing:0.15em;color:rgba(255,255,255,0.7);text-align:center;
+}
+.confirm-sub{
+  font-size:0.68rem;color:rgba(255,255,255,0.3);
+  font-family:'Cinzel',serif;letter-spacing:0.08em;
+  text-align:center;margin-top:-8px;
+}
+.confirm-btns{display:flex;gap:8px;width:100%;}
+.confirm-btn{
+  flex:1;height:42px;border-radius:10px;cursor:pointer;
+  font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);
+}
+.confirm-btn:active{opacity:0.7;}
+.confirm-btn.danger{
+  background:rgba(220,70,60,0.2);border-color:rgba(220,70,60,0.5);
+  color:rgba(255,120,110,0.9);
 }
 
 /* ── DRAWER ── */
-.drawer-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,0.72);
+.backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);
   z-index:50;opacity:0;pointer-events:none;transition:opacity 0.2s;
 }
-.drawer-backdrop.open{opacity:1;pointer-events:auto;}
+.backdrop.open{opacity:1;pointer-events:auto;}
 .drawer{
-  position:fixed;bottom:0;left:0;right:0;background:#12151b;
-  border-top:1px solid rgba(255,255,255,0.1);border-radius:16px 16px 0 0;
-  z-index:51;padding:10px 10px 28px;
+  position:fixed;bottom:0;left:0;right:0;
+  background:#111520;border-top:1px solid rgba(255,255,255,0.09);
+  border-radius:18px 18px 0 0;z-index:51;
+  padding:10px 10px 32px;
   transform:translateY(100%);
-  transition:transform 0.25s cubic-bezier(0.32,0.72,0,1);
-  max-height:88dvh;overflow-y:auto;
+  transition:transform 0.24s cubic-bezier(0.32,0.72,0,1);
+  max-height:85dvh;overflow-y:auto;
 }
 .drawer.open{transform:translateY(0);}
-.drawer-handle{width:36px;height:4px;background:rgba(255,255,255,0.16);border-radius:2px;margin:0 auto 12px;}
-.drawer h2{
-  font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.2em;
-  color:rgba(255,255,255,0.32);text-align:center;margin-bottom:10px;
-}
-.mods-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
-
-/* mod tile with card art */
+.drawer-handle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:0 auto 10px;}
+.mods-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
 .mod-tile{
-  background:#1a1e26;border:1.5px solid rgba(255,255,255,0.07);
-  border-radius:10px;cursor:pointer;overflow:hidden;position:relative;
-  display:flex;flex-direction:column;
+  border:2px solid rgba(255,255,255,0.07);
+  border-radius:9px;cursor:pointer;overflow:hidden;position:relative;
 }
 .mod-tile.on{border-color:var(--mc);}
 .mod-tile.on::after{
   content:'';position:absolute;inset:0;
-  background:var(--mc);opacity:0.08;pointer-events:none;
+  background:var(--mc);opacity:0.13;pointer-events:none;
 }
-/* card art image fills top portion */
 .mod-art{
-  width:100%;aspect-ratio:7/5;object-fit:cover;object-position:center top;
-  display:block;background:#1a1e26;opacity:0.55;transition:opacity 0.15s;
-  /* placeholder color while image absent */
-  min-height:60px;
+  width:100%;aspect-ratio:3/4;object-fit:cover;object-position:center top;
+  display:block;background:#1e2330;opacity:0.4;transition:opacity 0.15s;
 }
 .mod-tile.on .mod-art{opacity:1;}
-/* overlay strip at bottom of art for name */
-.mod-art-wrap{position:relative;flex-shrink:0;}
+.mod-art-wrap{position:relative;}
 .mod-art-label{
   position:absolute;bottom:0;left:0;right:0;
-  padding:14px 7px 5px;
-  background:linear-gradient(transparent,rgba(10,12,15,0.92));
-  font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.07em;
-  color:rgba(255,255,255,0.5);line-height:1.25;
+  padding:12px 4px 4px;
+  background:linear-gradient(transparent,rgba(8,10,14,0.9));
+  font-family:'Cinzel',serif;font-size:0.46rem;letter-spacing:0.05em;
+  color:rgba(255,255,255,0.4);line-height:1.2;text-align:center;
 }
 .mod-tile.on .mod-art-label{color:#e8e4dc;}
-.mod-bottom{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:5px 8px 6px;
+.mod-action-tile{
+  aspect-ratio:3/4;border-radius:9px;cursor:pointer;
+  border:1.5px solid rgba(255,255,255,0.09);
+  background:rgba(255,255,255,0.03);
+  color:rgba(255,255,255,0.35);
+  font-family:'Cinzel',serif;font-size:0.62rem;letter-spacing:0.1em;
+  display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.5;
 }
-.mod-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:rgba(255,255,255,0.1);flex-shrink:0;
-}
-.mod-tile.on .mod-dot{background:var(--mc);}
-.mod-badge{
-  font-size:0.55rem;font-family:'Cinzel',serif;letter-spacing:0.07em;
-  border-radius:4px;padding:2px 6px;border:1px solid var(--mc);
-  color:var(--mc);opacity:0.4;
-}
-.mod-tile.on .mod-badge{opacity:1;}
-
-.drawer-actions{display:flex;gap:7px;margin-top:12px;}
-.dbtn{
-  flex:1;height:40px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.5);
-  font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.1em;cursor:pointer;
-}
-.dbtn:active{opacity:0.7;}
+.mod-action-tile:active{background:rgba(255,255,255,0.09);}
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <h1>MANUFACTOR</h1>
-  <div class="create-row">
-    <select id="createType">
-      <option value="clue">Clue</option>
-      <option value="food">Food</option>
-      <option value="treasure">Treasure</option>
-      <option value="mutagen">Mutagen</option>
-      <option value="map">Map</option>
-    </select>
-    <input type="number" id="createAmt" value="1" min="1" max="99">
-    <button class="btn-sm" onclick="createTokens()">CREATE</button>
+  <div class="topbar-title">MANUFACTOR</div>
+  <div class="topbar-right">
+    <button class="tbar-btn untap" onclick="untapAll()">☀ UNTAP ALL</button>
+    <button class="tbar-btn" onclick="openDrawer()">
+      MODS <div class="mod-pips" id="modPips"></div>
+    </button>
   </div>
-  <button class="btn-untap" onclick="untapAll()">☀ UNTAP</button>
-  <button class="btn-sm" onclick="openDrawer()" style="display:flex;align-items:center;gap:5px;">
-    <span>MODS</span>
-    <div class="mod-indicator" id="modPips"></div>
-  </button>
 </div>
 
 <div class="grid" id="tokenGrid"></div>
 
-<div class="drawer-backdrop" id="backdrop" onclick="closeDrawer()"></div>
+<div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-handle"></div>
-  <h2>ACTIVE MODIFIERS</h2>
   <div class="mods-grid" id="modsGrid"></div>
-  <div class="drawer-actions">
-    <button class="dbtn" onclick="resetAll();closeDrawer()">RESET ALL</button>
-    <button class="dbtn" onclick="closeDrawer()">CLOSE</button>
+</div>
+
+<div class="confirm-backdrop" id="confirmBackdrop">
+  <div class="confirm-box">
+    <div class="confirm-title">RESET ALL?</div>
+    <div class="confirm-sub">Clears all tokens &amp; modifiers</div>
+    <div class="confirm-btns">
+      <button class="confirm-btn" onclick="closeConfirm()">CANCEL</button>
+      <button class="confirm-btn danger" onclick="confirmReset()">RESET</button>
+    </div>
   </div>
 </div>
 
 <script>
-var TT=['clue','food','treasure','mutagen','map'];
-var META={
-  clue:     {label:'Clues',   icon:'🔍',c:'#60b4e8',isArt:true},
-  food:     {label:'Food',    icon:'🍎',c:'#7ecb6f',isArt:true},
-  treasure: {label:'Treasure',icon:'💎',c:'#e8b84b',isArt:true},
-  mutagen:  {label:'Mutagen', icon:'🧪',c:'#b87ee8',isArt:false},
-  map:      {label:'Maps',    icon:'🗺',c:'#e87860',isArt:true},
+var TT = ['clue','food','treasure','mutagen'];
+var META = {
+  clue:     { label:'Clue',     c:'#60b4e8', isArt:true,  img:'img/clue-token.jpg'     },
+  food:     { label:'Food',     c:'#7ecb6f', isArt:true,  img:'img/food-token.jpg'     },
+  treasure: { label:'Treasure', c:'#e8b84b', isArt:true,  img:'img/treasure-token.jpg' },
+  mutagen:  { label:'Mutagen',  c:'#b87ee8', isArt:false, img:'img/mutagen-token.jpg'  },
 };
-var MODS=[
-  {id:'adrix',     name:'Adrix & Nev',          badge:'×2',      mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg'},
-  {id:'manufactor',name:'Academy Manufactor',   badge:'REPLACE', mc:'#e8d060', img:'img/academy-manufactor.jpg'},
-  {id:'peregrin',  name:'Peregrin Took',         badge:'+FOOD',   mc:'#7ecb6f', img:'img/peregrin-took.jpg'},
-  {id:'vending',   name:'Nuka-Cola Vending',     badge:'TRIGGER', mc:'#e8b84b', img:'img/nuka-cola-vending-machine.jpg'},
-  {id:'donatello', name:'Donatello, the Brains', badge:'+MUTAGEN',mc:'#b87ee8', img:'img/donatello-the-brains.jpg'},
-  {id:'mondrak',   name:'Mondrak, Glory Dominus',badge:'×2',      mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg'},
-  {id:'helm',      name:'Worldwalker Helm',      badge:'+MAP',    mc:'#e87860', img:'img/worldwalker-helm.jpg'},
+var MODS = [
+  { id:'adrix',      name:'Adrix & Nev',           mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg' },
+  { id:'manufactor', name:'Academy Manufactor',    mc:'#e8d060', img:'img/academy-manufactor.jpg' },
+  { id:'peregrin',   name:'Peregrin Took',          mc:'#7ecb6f', img:'img/peregrin-took.jpg' },
+  { id:'vending',    name:'Nuka-Cola Vending',      mc:'#e8b84b', img:'img/nuka-cola-vending-machine.jpg' },
+  { id:'donatello',  name:'Donatello, the Brains',  mc:'#b87ee8', img:'img/donatello-the-brains.jpg' },
+  { id:'mondrak',    name:'Mondrak, Glory Dominus',  mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg' },
 ];
-var modOn={};
-MODS.forEach(function(m){modOn[m.id]=false;});
-var state={};
-TT.forEach(function(t){state[t]={u:0,ta:0};});
+var modOn = {};
+MODS.forEach(function(m){ modOn[m.id] = false; });
+var state = {};
+TT.forEach(function(t){ state[t] = { u:0, ta:0 }; });
 
-function runCreate(tokens,fromSac){
-  fromSac=fromSac||false;
-  var tapped=tokens.every(function(t){return t.tapped;});
-  var batch=tokens.map(function(t){return {type:t.type,tapped:t.tapped,src:t.src};});
-  if(!fromSac){
-    var hasArt=batch.some(function(t){return META[t.type]&&META[t.type].isArt;});
-    if(modOn.peregrin)  batch.push({type:'food',   tapped:tapped,src:'p'});
-    if(modOn.donatello) batch.push({type:'mutagen',tapped:tapped,src:'d'});
-    if(modOn.helm&&hasArt) batch.push({type:'map', tapped:tapped,src:'h'});
+// ── Repeat-press helpers ──────────────────────────────────────────
+// Each half gets a timer + interval for hold-to-repeat
+var halfTimers  = {};  // type+'_u' or type+'_ta'
+var halfIntervals = {};
+
+function startRepeat(type, sk, delta) {
+  var isFirst = true;
+  function act() {
+    doAction(type, sk, delta, isFirst);
+    isFirst = false;
   }
-  if(modOn.manufactor){
-    var ex=[];
-    batch.forEach(function(tok){
-      if(tok.type==='clue'||tok.type==='food'||tok.type==='treasure'){
-        ex.push({type:'clue',    tapped:tok.tapped,src:'mf'});
-        ex.push({type:'food',    tapped:tok.tapped,src:'mf'});
-        ex.push({type:'treasure',tapped:tok.tapped,src:'mf'});
-      } else {ex.push(tok);}
+  act();
+  var key = type + '_' + sk;
+  halfTimers[key] = setTimeout(function(){
+    halfIntervals[key] = setInterval(act, 120);
+    halfTimers[key] = null;
+  }, 400);
+}
+function stopRepeat(type, sk) {
+  var key = type + '_' + sk;
+  clearTimeout(halfTimers[key]);
+  clearInterval(halfIntervals[key]);
+  halfTimers[key] = null;
+  halfIntervals[key] = null;
+}
+
+// ── Creation engine ───────────────────────────────────────────────
+function runCreate(tokens, fromSac) {
+  fromSac = fromSac || false;
+  var tapped = tokens.every(function(t){ return t.tapped; });
+  var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
+  if (!fromSac) {
+    if (modOn.peregrin)  batch.push({ type:'food',    tapped:tapped });
+    if (modOn.donatello) batch.push({ type:'mutagen', tapped:tapped });
+  }
+  if (modOn.manufactor) {
+    var ex = [];
+    batch.forEach(function(tok) {
+      if (tok.type==='clue'||tok.type==='food'||tok.type==='treasure') {
+        ex.push({type:'clue',tapped:tok.tapped});
+        ex.push({type:'food',tapped:tok.tapped});
+        ex.push({type:'treasure',tapped:tok.tapped});
+      } else { ex.push(tok); }
     });
-    batch=ex;
+    batch = ex;
   }
-  var mul=1;
-  if(modOn.adrix)   mul*=2;
-  if(modOn.mondrak) mul*=2;
-  if(mul>1){
-    var copies=[];
-    for(var i=1;i<mul;i++) batch.forEach(function(tok){copies.push({type:tok.type,tapped:tok.tapped,src:'mul'});});
-    batch=batch.concat(copies);
+  var mul = 1;
+  if (modOn.adrix)   mul *= 2;
+  if (modOn.mondrak) mul *= 2;
+  if (mul > 1) {
+    var copies = [];
+    for (var i = 1; i < mul; i++)
+      batch.forEach(function(tok){ copies.push({type:tok.type,tapped:tok.tapped}); });
+    batch = batch.concat(copies);
   }
-  batch.forEach(function(tok){state[tok.type][tok.tapped?'ta':'u']++;});
+  batch.forEach(function(tok){ state[tok.type][tok.tapped?'ta':'u']++; });
 }
 
-function createTokens(){
-  var type=document.getElementById('createType').value;
-  var amt=Math.max(1,parseInt(document.getElementById('createAmt').value)||1);
-  var prev=snapshot();
-  runCreate(Array.from({length:amt},function(){return {type:type,tapped:false,src:'m'};}));
-  render();flashChanged(prev);
-}
+function snapshot() { return TT.map(function(t){ return state[t].u+state[t].ta; }); }
 
-function adj(type,sk,d){
-  if(d>0){
-    var prev=snapshot();
-    runCreate([{type:type,tapped:sk==='ta',src:'m'}]);
-    render();flashChanged(prev);
+// ── Core action ───────────────────────────────────────────────────
+function doAction(type, sk, delta, doFlash) {
+  if (delta > 0) {
+    runCreate([{ type:type, tapped:(sk==='ta') }]);
   } else {
-    if(state[type][sk]>0){
+    if (state[type][sk] > 0) {
       state[type][sk]--;
-      if(type==='food'&&modOn.vending){
-        var prev2=snapshot();
-        runCreate([{type:'treasure',tapped:true,src:'v'}],true);
-        flashChanged(prev2);
+      if (type==='food' && modOn.vending) {
+        runCreate([{ type:'treasure', tapped:true }], true);
       }
     }
-    render();
   }
+  render();
 }
 
-function snapshot(){return TT.map(function(t){return state[t].u+state[t].ta;});}
-function flashChanged(prev){TT.forEach(function(t,i){if(state[t].u+state[t].ta>prev[i])flash(t);});}
+function tapTokens(type) {
+  // move one untapped → tapped
+  if (state[type].u > 0) { state[type].u--; state[type].ta++; render(); }
+}
+function untapTokens(type) {
+  if (state[type].ta > 0) { state[type].ta--; state[type].u++; render(); }
+}
+function untapAll() {
+  TT.forEach(function(t){ state[t].u += state[t].ta; state[t].ta = 0; });
+  render();
+}
+function openConfirm()  { document.getElementById('confirmBackdrop').classList.add('open'); }
+function closeConfirm() { document.getElementById('confirmBackdrop').classList.remove('open'); }
+function confirmReset() { closeConfirm(); closeDrawer(); resetAll(); }
 
-function tapOne(type){if(state[type].u>0){state[type].u--;state[type].ta++;render();}}
-function untapOne(type){if(state[type].ta>0){state[type].ta--;state[type].u++;render();}}
-function untapAll(){TT.forEach(function(t){state[t].u+=state[t].ta;state[t].ta=0;});render();}
-function resetAll(){
-  TT.forEach(function(t){state[t].u=0;state[t].ta=0;});
-  MODS.forEach(function(m){modOn[m.id]=false;});
-  renderMods();render();
+function resetAll() {
+  TT.forEach(function(t){ state[t].u = 0; state[t].ta = 0; });
+  MODS.forEach(function(m){ modOn[m.id] = false; });
+  renderMods(); render();
 }
 
-function flash(type){
-  var card=document.getElementById('tc-'+type);
-  if(!card)return;
-  var o=document.createElement('div');
-  o.className='flash-overlay';
-  o.style.setProperty('--c',META[type].c);
-  card.appendChild(o);
-  o.addEventListener('animationend',function(){o.remove();});
-}
-
-function render(){
-  TT.forEach(function(type){
-    var s=state[type];var total=s.u+s.ta;
-    var card=document.getElementById('tc-'+type);if(!card)return;
-    card.className='tok-card'+(total>0?' lit':'');
-    card.querySelector('.tok-total').textContent=total;
-    card.querySelector('.sub-u').textContent=s.u;
-    card.querySelector('.sub-ta').textContent=s.ta;
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+  TT.forEach(function(type) {
+    var s = state[type];
+    var total = s.u + s.ta;
+    var card = document.getElementById('tc-'+type);
+    if (!card) return;
+    card.className = 'tok-card' + (total > 0 ? ' lit' : '');
+    card.querySelector('.num-u').textContent  = s.u;
+    card.querySelector('.num-ta').textContent = s.ta;
   });
-  var pips=document.getElementById('modPips');pips.innerHTML='';
+  var pips = document.getElementById('modPips'); pips.innerHTML = '';
   MODS.forEach(function(m){
-    var d=document.createElement('div');
-    d.className='mod-pip'+(modOn[m.id]?' on':'');
+    var d = document.createElement('div');
+    d.className = 'mod-pip' + (modOn[m.id] ? ' on' : '');
     pips.appendChild(d);
   });
 }
 
-function buildGrid(){
-  var grid=document.getElementById('tokenGrid');grid.innerHTML='';
-  TT.forEach(function(type){
-    var m=META[type];
-    var card=document.createElement('div');
-    card.className='tok-card';card.id='tc-'+type;
-    card.style.setProperty('--c',m.c);
-    card.innerHTML=
-      '<div class="tok-label"><span class="tok-icon">'+m.icon+'</span>'+m.label.toUpperCase()+'</div>'+
-      '<div class="tok-total">0</div>'+
-      '<div class="tok-sub">'+
-        '<div class="sub-item"><div class="sub-val sub-u">0</div><div class="sub-lbl">untap</div></div>'+
-        '<div class="sub-item"><div class="sub-val sub-ta">0</div><div class="sub-lbl">tapped</div></div>'+
-      '</div>'+
-      '<div class="tok-div"></div>'+
-      '<div class="tok-btns">'+
-        '<button class="tbtn add-un"  onclick="adj(\''+type+'\',\'u\',1)">'+
-          '<span class="tbtn-sym">+</span><span class="tbtn-lbl">ADD UNTAPPED</span></button>'+
-        '<button class="tbtn rem-un" onclick="adj(\''+type+'\',\'u\',-1)">'+
-          '<span class="tbtn-sym">−</span><span class="tbtn-lbl">REM UNTAPPED</span></button>'+
-        '<button class="tbtn add-ta"  onclick="adj(\''+type+'\',\'ta\',1)">'+
-          '<span class="tbtn-sym">+</span><span class="tbtn-lbl">ADD TAPPED</span></button>'+
-        '<button class="tbtn rem-ta" onclick="adj(\''+type+'\',\'ta\',-1)">'+
-          '<span class="tbtn-sym">−</span><span class="tbtn-lbl">REM TAPPED</span></button>'+
-      '</div>'+
-      '<div class="tok-taprow">'+
-        '<button class="ttap" onclick="tapOne(\''+type+'\')">TAP ALL</button>'+
-        '<button class="ttap" onclick="untapOne(\''+type+'\')">UNTAP ALL</button>'+
-      '</div>';
+// ── Build DOM ─────────────────────────────────────────────────────
+function makeHalf(type, sk) {
+  // sk = 'u' or 'ta'
+  var isUntapped = (sk === 'u');
+  var half = document.createElement('div');
+  half.className = 'tok-half ' + (isUntapped ? 'untapped' : 'tapped');
+
+  // Left zone (sacrifice / decrement)
+  var zoneL = document.createElement('div');
+  zoneL.className = 'tap-zone left';
+  (function(t,s){
+    zoneL.addEventListener('pointerdown', function(e){
+      e.preventDefault(); e.stopPropagation();
+      zoneL.classList.add('active');
+      startRepeat(t, s, -1);
+    });
+    var stop = function(){ zoneL.classList.remove('active'); stopRepeat(t,s); };
+    zoneL.addEventListener('pointerup',     stop);
+    zoneL.addEventListener('pointerleave',  stop);
+    zoneL.addEventListener('pointercancel', stop);
+  })(type, sk);
+  half.appendChild(zoneL);
+
+  // Right zone (create / increment)
+  var zoneR = document.createElement('div');
+  zoneR.className = 'tap-zone right';
+  (function(t,s){
+    zoneR.addEventListener('pointerdown', function(e){
+      e.preventDefault(); e.stopPropagation();
+      zoneR.classList.add('active');
+      startRepeat(t, s, +1);
+    });
+    var stop = function(){ zoneR.classList.remove('active'); stopRepeat(t,s); };
+    zoneR.addEventListener('pointerup',     stop);
+    zoneR.addEventListener('pointerleave',  stop);
+    zoneR.addEventListener('pointercancel', stop);
+  })(type, sk);
+  half.appendChild(zoneR);
+
+  // Big number
+  var num = document.createElement('div');
+  num.className = 'tok-num num-' + sk;
+  num.textContent = '0';
+  half.appendChild(num);
+
+  // Edge hints
+  var hints = document.createElement('div');
+  hints.className = 'tok-hints';
+  hints.innerHTML = '<span class="tok-hint">−</span><span class="tok-hint">+</span>';
+  half.appendChild(hints);
+
+  // State label
+  var lbl = document.createElement('div');
+  lbl.className = 'tok-state-lbl';
+  lbl.textContent = isUntapped ? 'UNTAPPED' : 'TAPPED';
+  half.appendChild(lbl);
+
+  return half;
+}
+
+function buildGrid() {
+  var grid = document.getElementById('tokenGrid'); grid.innerHTML = '';
+  TT.forEach(function(type) {
+    var m = META[type];
+    var card = document.createElement('div');
+    card.className = 'tok-card'; card.id = 'tc-'+type;
+    card.style.setProperty('--c', m.c);
+
+    // Art background
+    var art = document.createElement('img');
+    art.className = 'tok-art';
+    art.src = m.img;
+    art.alt = '';
+    card.appendChild(art);
+
+    // Scrim
+    var scrim = document.createElement('div');
+    scrim.className = 'tok-scrim';
+    card.appendChild(scrim);
+
+    // Name
+    var name = document.createElement('div');
+    name.className = 'tok-name';
+    name.textContent = m.label.toUpperCase();
+    card.appendChild(name);
+
+    // Untapped half
+    card.appendChild(makeHalf(type, 'u'));
+
+    // Middle: TAP / UNTAP
+    var mid = document.createElement('div');
+    mid.className = 'tok-mid';
+    var tapBtn = document.createElement('button');
+    tapBtn.className = 'mid-btn';
+    tapBtn.innerHTML = '<span class="arrow">↷</span> TAP';
+    (function(t){ tapBtn.onclick = function(e){ e.stopPropagation(); tapTokens(t); }; })(type);
+    var untapBtn = document.createElement('button');
+    untapBtn.className = 'mid-btn';
+    untapBtn.innerHTML = '<span class="arrow">↺</span> UNTAP';
+    (function(t){ untapBtn.onclick = function(e){ e.stopPropagation(); untapTokens(t); }; })(type);
+    mid.appendChild(tapBtn);
+    mid.appendChild(untapBtn);
+    card.appendChild(mid);
+
+    // Tapped half
+    card.appendChild(makeHalf(type, 'ta'));
+
     grid.appendChild(card);
   });
 }
 
-function renderMods(){
-  var grid=document.getElementById('modsGrid');grid.innerHTML='';
-  MODS.forEach(function(mod){
-    var on=modOn[mod.id];
-    var tile=document.createElement('div');
-    tile.className='mod-tile'+(on?' on':'');
-    tile.style.setProperty('--mc',mod.mc);
-    tile.innerHTML=
-      '<div class="mod-art-wrap">'+
-        '<img class="mod-art" src="'+mod.img+'" alt="'+mod.name+'" onerror="this.style.background=\'#1e2330\'">'+
-        '<div class="mod-art-label">'+mod.name+'</div>'+
-      '</div>'+
-      '<div class="mod-bottom">'+
-        '<div class="mod-dot"></div>'+
-        '<div class="mod-badge">'+mod.badge+'</div>'+
+function renderMods() {
+  var grid = document.getElementById('modsGrid'); grid.innerHTML = '';
+  MODS.forEach(function(mod) {
+    var on = modOn[mod.id];
+    var tile = document.createElement('div');
+    tile.className = 'mod-tile' + (on ? ' on' : '');
+    tile.style.setProperty('--mc', mod.mc);
+    tile.innerHTML =
+      '<div class="mod-art-wrap">' +
+        '<img class="mod-art" src="' + mod.img + '" alt="' + mod.name + '" onerror="this.style.background=\'#1e2330\'">' +
+        '<div class="mod-art-label">' + mod.name + '</div>' +
       '</div>';
-    tile.onclick=function(){modOn[mod.id]=!modOn[mod.id];renderMods();render();};
+    (function(id){ tile.onclick = function(){ modOn[id]=!modOn[id]; renderMods(); render(); }; })(mod.id);
     grid.appendChild(tile);
   });
+  var reset = document.createElement('button');
+  reset.className = 'mod-action-tile'; reset.innerHTML = 'RESET<br>ALL';
+  reset.onclick = function(){ openConfirm(); };
+  grid.appendChild(reset);
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'mod-action-tile'; closeBtn.innerHTML = 'CLOSE';
+  closeBtn.onclick = function(){ closeDrawer(); };
+  grid.appendChild(closeBtn);
 }
 
-function openDrawer(){
-  document.getElementById('backdrop').classList.add('open');
-  document.getElementById('drawer').classList.add('open');
-}
-function closeDrawer(){
-  document.getElementById('backdrop').classList.remove('open');
-  document.getElementById('drawer').classList.remove('open');
-}
+function openDrawer()  { document.getElementById('backdrop').classList.add('open'); document.getElementById('drawer').classList.add('open'); }
+function closeDrawer() { document.getElementById('backdrop').classList.remove('open'); document.getElementById('drawer').classList.remove('open'); }
 
-buildGrid();renderMods();render();
+buildGrid(); renderMods(); render();
+
+// validate
+try { snapshot(); console.log('init ok'); } catch(e) { console.error(e); }
 </script>
 </body>
 </html>
