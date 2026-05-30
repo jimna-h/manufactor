@@ -43,10 +43,24 @@ body{
   display:flex;align-items:center;gap:6px;
 }
 .tbar-btn:active{background:rgba(255,255,255,0.12);}
+.tbar-btn.create{
+  background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.25);
+}
 .tbar-btn.untap{
   background:rgba(96,180,232,0.1);border-color:rgba(96,180,232,0.4);color:#60b4e8;
 }
 .tbar-btn.untap:active{background:rgba(96,180,232,0.22);}
+.tbar-select,.tbar-input{
+  height:34px;border-radius:8px;
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
+  color:#e8e4dc;font-family:'Cinzel',serif;font-size:0.58rem;
+  letter-spacing:0.07em;outline:none;-webkit-appearance:none;
+  padding:0 8px;cursor:pointer;
+}
+.tbar-select{width:90px;}
+.tbar-input{width:42px;text-align:center;}
+.tbar-input::-webkit-inner-spin-button{-webkit-appearance:none;}
 .mod-pips{display:flex;gap:3px;align-items:center;}
 .mod-pip{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1);}
 .mod-pip.on{background:#e8c84b;}
@@ -81,7 +95,7 @@ body{
   pointer-events:none;
   z-index:0;
 }
-.tok-card.lit .tok-art{opacity:0.22;}
+.tok-card.lit .tok-art{opacity:0.38;}
 
 /* Dark scrim so numbers stay readable over art */
 .tok-scrim{
@@ -281,7 +295,15 @@ body{
 <div class="topbar">
   <div class="topbar-title">MANUFACTOR</div>
   <div class="topbar-right">
-    <button class="tbar-btn untap" onclick="untapAll()">☀ UNTAP ALL</button>
+    <select id="createType" class="tbar-select">
+      <option value="clue">Clue</option>
+      <option value="food">Food</option>
+      <option value="treasure">Treasure</option>
+      <option value="mutagen">Mutagen</option>
+    </select>
+    <input type="number" id="createAmt" class="tbar-input" value="1" min="1" max="99">
+    <button class="tbar-btn create" onclick="bulkCreate()">CREATE</button>
+    <button class="tbar-btn untap" onclick="untapAll()">☀ UNTAP</button>
     <button class="tbar-btn" onclick="openDrawer()">
       MODS <div class="mod-pips" id="modPips"></div>
     </button>
@@ -311,9 +333,9 @@ body{
 var TT = ['clue','food','treasure','mutagen'];
 var META = {
   clue:     { label:'Clue',     c:'#60b4e8', isArt:true,  img:'img/clue-token.jpg'     },
-  food:     { label:'Food',     c:'#7ecb6f', isArt:true,  img:'img/food-token.jpg'     },
-  treasure: { label:'Treasure', c:'#e8b84b', isArt:true,  img:'img/treasure-token.jpg' },
-  mutagen:  { label:'Mutagen',  c:'#b87ee8', isArt:false, img:'img/mutagen-token.jpg'  },
+  food:     { label:'Food',     c:'#e8a87c', isArt:true,  img:'img/food-token.jpg'     },
+  treasure: { label:'Treasure', c:'#4ecba8', isArt:true,  img:'img/treasure-token.jpg' },
+  mutagen:  { label:'Mutagen',  c:'#5dde6a', isArt:false, img:'img/mutagen-token.jpg'  },
 };
 var MODS = [
   { id:'adrix',      name:'Adrix & Nev',           mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg' },
@@ -417,6 +439,17 @@ function untapAll() {
 function openConfirm()  { document.getElementById('confirmBackdrop').classList.add('open'); }
 function closeConfirm() { document.getElementById('confirmBackdrop').classList.remove('open'); }
 function confirmReset() { closeConfirm(); closeDrawer(); resetAll(); }
+
+function bulkCreate() {
+  var type = document.getElementById('createType').value;
+  var amt  = Math.max(1, parseInt(document.getElementById('createAmt').value) || 1);
+  // Pass all tokens as one batch — additive modifiers (Peregrin, Donatello)
+  // fire once for the whole event, not once per token. Correct per rules.
+  var tokens = [];
+  for (var i = 0; i < amt; i++) tokens.push({ type:type, tapped:false });
+  runCreate(tokens);
+  render();
+}
 
 function resetAll() {
   TT.forEach(function(t){ state[t].u = 0; state[t].ta = 0; });
