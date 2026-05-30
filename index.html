@@ -24,10 +24,10 @@ body{
 
 /* ── TOP BAR ── */
 .topbar{
-  display:flex;align-items:center;
-  padding:0 10px;height:44px;
+  display:flex;align-items:center;flex-wrap:wrap;
+  padding:0 10px;min-height:44px;
   border-bottom:1px solid rgba(255,255,255,0.07);
-  flex-shrink:0;gap:8px;
+  flex-shrink:0;gap:6px;
 }
 .topbar-title{
   font-family:'Cinzel',serif;font-size:0.85rem;
@@ -35,8 +35,16 @@ body{
 }
 .topbar-center{
   flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  min-width:0;
 }
-.topbar-right{display:flex;gap:6px;align-items:center;}
+.topbar-right{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+
+/* Portrait: title on its own row, center+right share second row */
+@media(max-aspect-ratio:1/1){
+  .topbar{padding:6px 10px;}
+  .topbar-title{width:100%;text-align:center;padding:2px 0;}
+  .topbar-center{justify-content:center;}
+}
 .tbar-btn{
   height:34px;padding:0 12px;border-radius:8px;
   border:1px solid rgba(255,255,255,0.15);
@@ -627,8 +635,9 @@ function closeDrawer() { document.getElementById('backdrop').classList.remove('o
 
 buildGrid(); renderMods(); render();
 
-// validate
-try { snapshot(); console.log('init ok'); } catch(e) { console.error(e); }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
 </script>
 </body>
 </html>
