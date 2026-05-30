@@ -2,7 +2,7 @@
   "name": "MANUFACTOR",
   "short_name": "MANUFACTOR",
   "description": "MTG artifact token tracker",
-  "start_url": "./manufactor.html",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#0c0e11",
