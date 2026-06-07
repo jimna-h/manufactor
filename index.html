@@ -372,6 +372,7 @@ var MODS = [
   { id:'vending',    name:'Nuka-Cola Vending',      mc:'#e8b84b', img:'img/nuka-cola-vending-machine.jpg' },
   { id:'donatello',  name:'Donatello, the Brains',  mc:'#b87ee8', img:'img/donatello-the-brains.jpg' },
   { id:'mondrak',    name:'Mondrak, Glory Dominus',  mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg' },
+  { id:'tippy',      name:'Tippy-Toe, Terrific Partner', mc:'#7ecb6f', img:'img/tippy-toe.jpg' },
 ];
 var modOn = {};
 MODS.forEach(function(m){ modOn[m.id] = false; });
@@ -409,8 +410,9 @@ function runCreate(tokens, fromVending) {
   fromVending = fromVending || false;
   var tapped = tokens.every(function(t){ return t.tapped; });
   var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
-  // Peregrin and Donatello fire on ALL creation events, including Vending Machine
+  // Peregrin, Tippy-Toe, and Donatello fire on ALL creation events, including Vending Machine
   if (modOn.peregrin)  batch.push({ type:'food',    tapped:tapped });
+  if (modOn.tippy)     batch.push({ type:'food',    tapped:tapped });
   if (modOn.donatello) batch.push({ type:'mutagen', tapped:tapped });
   if (modOn.manufactor) {
     var ex = [];
@@ -632,14 +634,24 @@ function renderMods() {
     (function(id){ tile.onclick = function(){ modOn[id]=!modOn[id]; renderMods(); render(); }; })(mod.id);
     grid.appendChild(tile);
   });
+  var actionsDiv = document.createElement('div');
+  actionsDiv.style.cssText = 'display:flex;flex-direction:column;gap:5px;aspect-ratio:3/4;';
+
   var reset = document.createElement('button');
-  reset.className = 'mod-action-tile'; reset.innerHTML = 'RESET<br>ALL';
+  reset.className = 'mod-action-tile';
+  reset.style.cssText = 'aspect-ratio:unset;flex:1;background:rgba(232,200,75,0.15);border-color:rgba(232,200,75,0.5);color:rgba(232,200,75,0.9);';
+  reset.innerHTML = 'RESET<br>ALL';
   reset.onclick = function(){ openConfirm(); };
-  grid.appendChild(reset);
+
   var closeBtn = document.createElement('button');
-  closeBtn.className = 'mod-action-tile'; closeBtn.innerHTML = 'CLOSE';
+  closeBtn.className = 'mod-action-tile';
+  closeBtn.style.cssText = 'aspect-ratio:unset;flex:1;background:rgba(220,70,60,0.15);border-color:rgba(220,70,60,0.5);color:rgba(255,100,90,0.9);';
+  closeBtn.innerHTML = 'CLOSE';
   closeBtn.onclick = function(){ closeDrawer(); };
-  grid.appendChild(closeBtn);
+
+  actionsDiv.appendChild(reset);
+  actionsDiv.appendChild(closeBtn);
+  grid.appendChild(actionsDiv);
 }
 
 function openDrawer()  { document.getElementById('backdrop').classList.add('open'); document.getElementById('drawer').classList.add('open'); }
