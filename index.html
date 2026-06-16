@@ -285,6 +285,8 @@ body{
 .mod-tile{
   border:2px solid rgba(255,255,255,0.07);
   border-radius:9px;cursor:pointer;overflow:hidden;position:relative;
+  -webkit-touch-callout:none;
+  touch-action:none;
 }
 .mod-tile.on{border-color:var(--mc);}
 .mod-tile.on::after{
@@ -724,6 +726,7 @@ function renderMods() {
     var holdTimer = null;
     var holdFired = false;
     (function(m) {
+      tile.addEventListener('contextmenu', function(e){ e.preventDefault(); });
       tile.addEventListener('pointerdown', function() {
         holdFired = false;
         holdTimer = setTimeout(function() {
