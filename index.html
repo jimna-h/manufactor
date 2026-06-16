@@ -314,6 +314,48 @@ body{
   display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.5;
 }
 .mod-action-tile:active{background:rgba(255,255,255,0.09);}
+
+/* quantity popover */
+.qty-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);
+  z-index:80;display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.15s;
+}
+.qty-backdrop.open{opacity:1;pointer-events:auto;}
+.qty-box{
+  background:#181c26;border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px;padding:18px 20px 14px;
+  display:flex;flex-direction:column;align-items:center;gap:12px;min-width:200px;
+}
+.qty-title{
+  font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;
+  color:rgba(255,255,255,0.5);text-align:center;
+}
+.qty-title strong{color:var(--qc,#fff);}
+.qty-row{display:flex;align-items:center;gap:16px;}
+.qty-btn{
+  width:44px;height:44px;border-radius:10px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);
+  color:#e8e4dc;font-size:1.4rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.qty-btn:active{background:rgba(255,255,255,0.18);}
+.qty-val{
+  font-size:2.5rem;font-weight:700;color:#fff;
+  min-width:40px;text-align:center;font-family:'Oswald',sans-serif;
+}
+.qty-done{
+  height:36px;padding:0 24px;border-radius:8px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);
+  color:#e8e4dc;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;
+}
+.mod-qty-badge{
+  position:absolute;top:4px;right:4px;
+  background:rgba(0,0,0,0.7);border-radius:4px;
+  padding:1px 4px;font-family:'Cinzel',serif;
+  font-size:0.5rem;letter-spacing:0.05em;color:#fff;
+  z-index:2;pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -322,6 +364,7 @@ body{
   <div class="topbar-title">MANUFACTOR</div>
   <div class="topbar-center">
     <select id="createType" class="tbar-select">
+      <option value="generic" selected>Generic</option>
       <option value="clue">Clue</option>
       <option value="food">Food</option>
       <option value="treasure">Treasure</option>
@@ -344,6 +387,18 @@ body{
 <div class="drawer" id="drawer">
   <div class="drawer-handle"></div>
   <div class="mods-grid" id="modsGrid"></div>
+</div>
+
+<div class="qty-backdrop" id="qtyBackdrop" onclick="closeQty()">
+  <div class="qty-box" onclick="event.stopPropagation()">
+    <div class="qty-title">Copies of <strong id="qtyName"></strong></div>
+    <div class="qty-row">
+      <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+      <div class="qty-val" id="qtyVal">1</div>
+      <button class="qty-btn" onclick="adjustQty(1)">+</button>
+    </div>
+    <button class="qty-done" onclick="closeQty()">DONE</button>
+  </div>
 </div>
 
 <div class="confirm-backdrop" id="confirmBackdrop">
@@ -375,7 +430,7 @@ var MODS = [
   { id:'tippy',      name:'Tippy-Toe, Terrific Partner', mc:'#7ecb6f', img:'img/tippy-toe.jpg' },
 ];
 var modOn = {};
-MODS.forEach(function(m){ modOn[m.id] = false; });
+MODS.forEach(function(m){ modOn[m.id] = 0; });
 var state = {};
 TT.forEach(function(t){ state[t] = { u:0, ta:0 }; });
 
@@ -410,31 +465,44 @@ function runCreate(tokens, fromVending) {
   fromVending = fromVending || false;
   var tapped = tokens.every(function(t){ return t.tapped; });
   var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
-  // Peregrin, Tippy-Toe, and Donatello fire on ALL creation events, including Vending Machine
-  if (modOn.peregrin)  batch.push({ type:'food',    tapped:tapped });
-  if (modOn.tippy)     batch.push({ type:'food',    tapped:tapped });
-  if (modOn.donatello) batch.push({ type:'mutagen', tapped:tapped });
-  if (modOn.manufactor) {
+
+  // Step 1: Additive — each copy adds one token per event
+  for (var p = 0; p < modOn.peregrin;  p++) batch.push({ type:'food',    tapped:tapped });
+  for (var tp = 0; tp < modOn.tippy;   tp++) batch.push({ type:'food',    tapped:tapped });
+  for (var d = 0; d < modOn.donatello; d++) batch.push({ type:'mutagen', tapped:tapped });
+
+  // Step 2: Manufactor — apply N times in sequence (each pass triples Clue/Food/Treasure)
+  for (var mf = 0; mf < modOn.manufactor; mf++) {
     var ex = [];
     batch.forEach(function(tok) {
       if (tok.type==='clue'||tok.type==='food'||tok.type==='treasure') {
-        ex.push({type:'clue',tapped:tok.tapped});
-        ex.push({type:'food',tapped:tok.tapped});
+        ex.push({type:'clue',    tapped:tok.tapped});
+        ex.push({type:'food',    tapped:tok.tapped});
         ex.push({type:'treasure',tapped:tok.tapped});
       } else { ex.push(tok); }
     });
     batch = ex;
   }
+
+  // Step 3: Doublers — each copy of Adrix/Mondrak doubles the batch
   var mul = 1;
-  if (modOn.adrix)   mul *= 2;
-  if (modOn.mondrak) mul *= 2;
+  for (var a = 0; a < modOn.adrix;   a++) mul *= 2;
+  for (var mn = 0; mn < modOn.mondrak; mn++) mul *= 2;
   if (mul > 1) {
     var copies = [];
     for (var i = 1; i < mul; i++)
       batch.forEach(function(tok){ copies.push({type:tok.type,tapped:tok.tapped}); });
     batch = batch.concat(copies);
   }
-  batch.forEach(function(tok){ state[tok.type][tok.tapped?'ta':'u']++; });
+
+  // Step 4: Vending — each copy creates that many tapped Treasures per Food sacrifice
+  // (handled in doAction, quantity used there)
+
+  batch.forEach(function(tok){
+    if (tok.type !== 'generic') {
+      state[tok.type][tok.tapped?'ta':'u']++;
+    }
+  });
 }
 
 function snapshot() { return TT.map(function(t){ return state[t].u+state[t].ta; }); }
@@ -446,11 +514,10 @@ function doAction(type, sk, delta, doFlash) {
   } else {
     if (state[type][sk] > 0) {
       state[type][sk]--;
-      if (type==='food' && modOn.vending) {
-        // fromVending=true so the treasure created here doesn't loop back into Vending
-        // Note: Peregrin/Donatello DO fire (no longer blocked), but the food
-        // Peregrin adds here is a creation event, not a sacrifice, so Vending won't trigger on it
-        runCreate([{ type:'treasure', tapped:true }], true);
+      if (type==='food' && modOn.vending > 0) {
+        for (var v = 0; v < modOn.vending; v++) {
+          runCreate([{ type:'treasure', tapped:true }], true);
+        }
       }
     }
   }
@@ -475,8 +542,6 @@ function confirmReset() { closeConfirm(); closeDrawer(); resetAll(); }
 function bulkCreate() {
   var type = document.getElementById('createType').value;
   var amt  = Math.max(1, parseInt(document.getElementById('createAmt').value) || 1);
-  // Pass all tokens as one batch — additive modifiers (Peregrin, Donatello)
-  // fire once for the whole event, not once per token. Correct per rules.
   var tokens = [];
   for (var i = 0; i < amt; i++) tokens.push({ type:type, tapped:false });
   runCreate(tokens);
@@ -485,7 +550,7 @@ function bulkCreate() {
 
 function resetAll() {
   TT.forEach(function(t){ state[t].u = 0; state[t].ta = 0; });
-  MODS.forEach(function(m){ modOn[m.id] = false; });
+  MODS.forEach(function(m){ modOn[m.id] = 0; });
   renderMods(); render();
 }
 
@@ -503,7 +568,7 @@ function render() {
   var pips = document.getElementById('modPips'); pips.innerHTML = '';
   MODS.forEach(function(m){
     var d = document.createElement('div');
-    d.className = 'mod-pip' + (modOn[m.id] ? ' on' : '');
+    d.className = 'mod-pip' + (modOn[m.id] > 0 ? ' on' : '');
     pips.appendChild(d);
   });
 }
@@ -619,10 +684,32 @@ function buildGrid() {
   });
 }
 
+var qtyCurrentId = null;
+function openQty(mod) {
+  qtyCurrentId = mod.id;
+  document.getElementById('qtyName').textContent = mod.name;
+  document.getElementById('qtyName').style.color = mod.mc;
+  document.getElementById('qtyVal').textContent = modOn[mod.id] || 1;
+  document.getElementById('qtyBackdrop').classList.add('open');
+}
+function closeQty() {
+  if (qtyCurrentId) {
+    modOn[qtyCurrentId] = parseInt(document.getElementById('qtyVal').textContent);
+  }
+  document.getElementById('qtyBackdrop').classList.remove('open');
+  qtyCurrentId = null;
+  renderMods(); render();
+}
+function adjustQty(d) {
+  var cur = parseInt(document.getElementById('qtyVal').textContent);
+  document.getElementById('qtyVal').textContent = Math.max(1, cur + d);
+}
+
 function renderMods() {
   var grid = document.getElementById('modsGrid'); grid.innerHTML = '';
   MODS.forEach(function(mod) {
-    var on = modOn[mod.id];
+    var qty = modOn[mod.id];
+    var on = qty > 0;
     var tile = document.createElement('div');
     tile.className = 'mod-tile' + (on ? ' on' : '');
     tile.style.setProperty('--mc', mod.mc);
@@ -630,25 +717,48 @@ function renderMods() {
       '<div class="mod-art-wrap">' +
         '<img class="mod-art" src="' + mod.img + '" alt="' + mod.name + '" onerror="this.style.background=\'#1e2330\'">' +
         '<div class="mod-art-label">' + mod.name + '</div>' +
-      '</div>';
-    (function(id){ tile.onclick = function(){ modOn[id]=!modOn[id]; renderMods(); render(); }; })(mod.id);
+      '</div>' +
+      (qty > 1 ? '<div class="mod-qty-badge">×' + qty + '</div>' : '');
+
+    // tap = toggle on/off, hold = open qty picker
+    var holdTimer = null;
+    var holdFired = false;
+    (function(m) {
+      tile.addEventListener('pointerdown', function() {
+        holdFired = false;
+        holdTimer = setTimeout(function() {
+          holdFired = true;
+          if (modOn[m.id] === 0) modOn[m.id] = 1;
+          openQty(m);
+          renderMods(); render();
+        }, 500);
+      });
+      tile.addEventListener('pointerup', function() {
+        clearTimeout(holdTimer);
+        if (!holdFired) {
+          modOn[m.id] = modOn[m.id] > 0 ? 0 : 1;
+          renderMods(); render();
+        }
+      });
+      tile.addEventListener('pointerleave',  function() { clearTimeout(holdTimer); });
+      tile.addEventListener('pointercancel', function() { clearTimeout(holdTimer); });
+    })(mod);
+
     grid.appendChild(tile);
   });
+
   var actionsDiv = document.createElement('div');
   actionsDiv.style.cssText = 'display:flex;flex-direction:column;gap:5px;aspect-ratio:3/4;';
-
   var reset = document.createElement('button');
   reset.className = 'mod-action-tile';
   reset.style.cssText = 'aspect-ratio:unset;flex:1;background:rgba(232,200,75,0.15);border-color:rgba(232,200,75,0.5);color:rgba(232,200,75,0.9);';
   reset.innerHTML = 'RESET<br>ALL';
   reset.onclick = function(){ openConfirm(); };
-
   var closeBtn = document.createElement('button');
   closeBtn.className = 'mod-action-tile';
   closeBtn.style.cssText = 'aspect-ratio:unset;flex:1;background:rgba(220,70,60,0.15);border-color:rgba(220,70,60,0.5);color:rgba(255,100,90,0.9);';
   closeBtn.innerHTML = 'CLOSE';
   closeBtn.onclick = function(){ closeDrawer(); };
-
   actionsDiv.appendChild(reset);
   actionsDiv.appendChild(closeBtn);
   grid.appendChild(actionsDiv);
