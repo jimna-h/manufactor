@@ -475,6 +475,35 @@ body{
 }
 .settings-mod-row.on .settings-mod-toggle::after{transform:translateX(16px);}
 
+/* Alt-art star button — only rendered when a -alt.jpg variant exists */
+.alt-art-btn{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
+  color:rgba(255,255,255,0.3);
+  font-size:0.85rem;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+.alt-art-btn.active{
+  background:rgba(232,200,75,0.18);border-color:rgba(232,200,75,0.6);
+  color:#e8c84b;
+}
+.alt-art-btn:active{opacity:0.7;}
+
+/* Token settings tile star button, positioned top-left so it doesn't clash with the check mark */
+.settings-token-altbtn{
+  position:absolute;top:5px;left:5px;z-index:3;
+  width:22px;height:22px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.4);
+  font-size:0.7rem;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+}
+.settings-token-altbtn.active{
+  background:rgba(232,200,75,0.3);border-color:#e8c84b;color:#e8c84b;
+}
+
 .settings-footer{
   flex-shrink:0;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);
 }
@@ -1054,7 +1083,7 @@ function buildGrid() {
     // Art background
     var art = document.createElement('img');
     art.className = 'tok-art';
-    art.src = m.img;
+    art.src = resolveArtPath(m.img, type);
     art.alt = '';
     card.appendChild(art);
 
@@ -1125,7 +1154,7 @@ function renderMods() {
     tile.style.setProperty('--mc', mod.mc);
     tile.innerHTML =
       '<div class="mod-art-wrap">' +
-        '<img class="mod-art" src="' + mod.img + '" alt="' + mod.name + '" onerror="this.style.background=\'#1e2330\'">' +
+        '<img class="mod-art" src="' + resolveArtPath(mod.img, mod.id) + '" alt="' + mod.name + '" onerror="this.style.background=\'#1e2330\'">' +
         '<div class="mod-art-label">' + mod.name + '</div>' +
       '</div>' +
       (qty > 1 ? '<div class="mod-qty-badge">×' + qty + '</div>' : '');
@@ -1211,6 +1240,43 @@ function renderProfileSelect() {
   };
 }
 
+// ── Alt art support ──────────────────────────────────────────────
+// For any token/mod image "name.jpg", if "name-alt.jpg" also exists in the
+// img/ folder, a star button appears letting the user switch to it.
+// Choice is stored per-profile under profile.artVariants = { tokenId/modId: 'default'|'alt' }
+function altPathFor(basePath) {
+  return basePath.replace(/\.jpg$/i, '-alt.jpg');
+}
+
+var altArtAvailable = {}; // cache of probed results: { basePath: true|false }
+function probeAltArt(basePath, callback) {
+  if (altArtAvailable.hasOwnProperty(basePath)) {
+    callback(altArtAvailable[basePath]);
+    return;
+  }
+  var img = new Image();
+  var altPath = altPathFor(basePath);
+  img.onload = function() { altArtAvailable[basePath] = true;  callback(true); };
+  img.onerror = function() { altArtAvailable[basePath] = false; callback(false); };
+  img.src = altPath;
+}
+
+function getArtVariant(key) {
+  var p = getActiveProfile();
+  if (!p || !p.artVariants) return 'default';
+  return p.artVariants[key] || 'default';
+}
+function setArtVariant(key, variant) {
+  var p = getActiveProfile();
+  if (!p) return;
+  if (!p.artVariants) p.artVariants = {};
+  p.artVariants[key] = variant;
+  persistProfileData();
+}
+function resolveArtPath(basePath, key) {
+  return getArtVariant(key) === 'alt' ? altPathFor(basePath) : basePath;
+}
+
 function renderSettingsTokens() {
   var grid = document.getElementById('settingsTokenGrid');
   grid.innerHTML = '';
@@ -1221,10 +1287,19 @@ function renderSettingsTokens() {
     var tile = document.createElement('div');
     tile.className = 'settings-token-tile' + (isOn ? ' on' : '') + (atCap ? ' disabled' : '');
     tile.style.setProperty('--tc', t.c);
-    tile.innerHTML =
-      '<img class="settings-token-art" src="' + t.img + '" alt="">' +
-      '<div class="settings-token-check">✓</div>' +
-      '<div class="settings-token-label">' + t.label + '</div>';
+    var artImg = document.createElement('img');
+    artImg.className = 'settings-token-art';
+    artImg.alt = '';
+    artImg.src = resolveArtPath(t.img, tokenId);
+    var checkDiv = document.createElement('div');
+    checkDiv.className = 'settings-token-check';
+    checkDiv.textContent = '✓';
+    var labelDiv = document.createElement('div');
+    labelDiv.className = 'settings-token-label';
+    labelDiv.textContent = t.label;
+    tile.appendChild(artImg);
+    tile.appendChild(checkDiv);
+    tile.appendChild(labelDiv);
     tile.onclick = function() {
       var idx = pendingTokens.indexOf(tokenId);
       if (idx !== -1) {
@@ -1236,6 +1311,25 @@ function renderSettingsTokens() {
       updateTokenPickCount();
     };
     grid.appendChild(tile);
+
+    // Probe for alt art; if found, add the star button
+    probeAltArt(t.img, function(tokenIdClosure, tileClosure, artImgClosure, exists) {
+      if (!exists) return;
+      var starBtn = document.createElement('div');
+      starBtn.className = 'settings-token-altbtn' + (getArtVariant(tokenIdClosure) === 'alt' ? ' active' : '');
+      starBtn.textContent = '★';
+      starBtn.onclick = function(e) {
+        e.stopPropagation();
+        var current = getArtVariant(tokenIdClosure);
+        var next = current === 'alt' ? 'default' : 'alt';
+        setArtVariant(tokenIdClosure, next);
+        artImgClosure.src = resolveArtPath(t.img, tokenIdClosure);
+        starBtn.className = 'settings-token-altbtn' + (next === 'alt' ? ' active' : '');
+        // also refresh the main grid art if this token is active
+        if (TT.indexOf(tokenIdClosure) !== -1) buildGrid();
+      };
+      tileClosure.appendChild(starBtn);
+    }.bind(null, tokenId, tile, artImg));
   });
   updateTokenPickCount();
 }
@@ -1257,13 +1351,26 @@ function renderSettingsMods() {
     if (mod.mechanic === 'addArtifactToken') tagText = 'adds ' + TOKEN_LIBRARY[mod.addsTokenType].label + ' on artifact creation';
     if (mod.mechanic === 'addTokenIfPresent') tagText = 'adds extra ' + TOKEN_LIBRARY[mod.addsTokenType].label;
     if (mod.mechanic === 'vending') tagText = 'sac Food → tapped Treasure';
-    row.innerHTML =
-      '<img class="settings-mod-thumb" src="' + mod.img + '" alt="" onerror="this.style.background=\'#1e2330\'">' +
-      '<div class="settings-mod-info">' +
-        '<div class="settings-mod-name">' + mod.name + '</div>' +
-        '<div class="settings-mod-tag">' + tagText + '</div>' +
-      '</div>' +
-      '<div class="settings-mod-toggle"></div>';
+
+    var thumbImg = document.createElement('img');
+    thumbImg.className = 'settings-mod-thumb';
+    thumbImg.alt = '';
+    thumbImg.onerror = function(){ thumbImg.style.background = '#1e2330'; };
+    thumbImg.src = resolveArtPath(mod.img, mod.id);
+
+    var infoDiv = document.createElement('div');
+    infoDiv.className = 'settings-mod-info';
+    infoDiv.innerHTML =
+      '<div class="settings-mod-name">' + mod.name + '</div>' +
+      '<div class="settings-mod-tag">' + tagText + '</div>';
+
+    var toggleDiv = document.createElement('div');
+    toggleDiv.className = 'settings-mod-toggle';
+
+    row.appendChild(thumbImg);
+    row.appendChild(infoDiv);
+    row.appendChild(toggleDiv);
+
     row.onclick = function() {
       var idx = pendingMods.indexOf(mod.id);
       if (idx !== -1) pendingMods.splice(idx, 1);
@@ -1271,6 +1378,25 @@ function renderSettingsMods() {
       renderSettingsMods();
     };
     list.appendChild(row);
+
+    // Probe for alt art; if found, insert the star button before the toggle
+    probeAltArt(mod.img, function(modClosure, thumbImgClosure, toggleDivClosure, rowClosure, exists) {
+      if (!exists) return;
+      var starBtn = document.createElement('div');
+      starBtn.className = 'alt-art-btn' + (getArtVariant(modClosure.id) === 'alt' ? ' active' : '');
+      starBtn.textContent = '★';
+      starBtn.onclick = function(e) {
+        e.stopPropagation();
+        var current = getArtVariant(modClosure.id);
+        var next = current === 'alt' ? 'default' : 'alt';
+        setArtVariant(modClosure.id, next);
+        thumbImgClosure.src = resolveArtPath(modClosure.img, modClosure.id);
+        starBtn.className = 'alt-art-btn' + (next === 'alt' ? ' active' : '');
+        // refresh the in-game mods drawer if this mod is currently enabled
+        if (MODS.some(function(m){ return m.id === modClosure.id; })) renderMods();
+      };
+      rowClosure.insertBefore(starBtn, toggleDivClosure);
+    }.bind(null, mod, thumbImg, toggleDiv, row));
   });
 }
 
@@ -1333,7 +1459,8 @@ function confirmProfileName() {
       id: makeProfileId(),
       name: name,
       activeTokens: pendingTokens.length ? pendingTokens.slice() : Object.keys(TOKEN_LIBRARY).slice(0,4),
-      enabledMods: []
+      enabledMods: [],
+      artVariants: {}
     };
     profiles.push(newProfile);
     activeProfileId = newProfile.id;
@@ -1428,7 +1555,8 @@ function createFirstProfile() {
     id: makeProfileId(),
     name: name,
     activeTokens: ['clue','food','treasure','mutagen'],
-    enabledMods: []
+    enabledMods: [],
+    artVariants: {}
   };
   profiles.push(newProfile);
   activeProfileId = newProfile.id;
