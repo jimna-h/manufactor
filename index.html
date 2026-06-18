@@ -71,6 +71,14 @@ body{
   background:rgba(96,180,232,0.1);border-color:rgba(96,180,232,0.4);color:#60b4e8;
 }
 .tbar-btn.untap:active{background:rgba(96,180,232,0.22);}
+.tbar-btn.undo{
+  background:rgba(232,200,75,0.1);border-color:rgba(232,200,75,0.4);color:#e8c84b;
+}
+.tbar-btn.undo:active{background:rgba(232,200,75,0.22);}
+.tbar-btn.undo:disabled{
+  opacity:0.3;cursor:not-allowed;
+  background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1);color:rgba(255,255,255,0.3);
+}
 .tbar-btn.gear{
   font-size:1rem;padding:0 10px;
 }
@@ -111,6 +119,33 @@ body{
   overflow:hidden;position:relative;
 }
 .tok-card.lit{border-color:var(--c);}
+
+/* Container anchors the stack of transient +X/-X popups for one token type */
+.tok-delta-container{
+  position:absolute;top:6px;right:8px;left:8px;
+  height:1px;
+  z-index:5;
+  pointer-events:none;
+  display:flex;justify-content:flex-end;
+}
+/* Each tap/sacrifice spawns one of these. They start low/transparent,
+   then rise + fade on the next frame, and stack upward if several land
+   in quick succession (via the inline `bottom` offset set in JS). */
+.tok-delta-popup{
+  position:absolute;right:0;top:0;
+  font-family:'Cinzel',serif;font-weight:900;
+  font-size:clamp(1rem,2.4vw,1.5rem);
+  white-space:nowrap;
+  opacity:0;transform:translateY(10px) scale(0.8);
+  transition:opacity 0.9s ease-out,transform 0.9s ease-out;
+  text-shadow:0 1px 5px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.6);
+}
+.tok-delta-popup.rise{
+  opacity:1;transform:translateY(-26px) scale(1);
+  transition:opacity 0.9s ease-out 0.05s,transform 0.9s ease-out 0.05s;
+}
+.tok-delta-popup.positive{color:#5fd97a;}
+.tok-delta-popup.negative{color:#e86060;}
 
 /* Art fills the full card behind everything */
 .tok-art{
@@ -232,42 +267,84 @@ body{
 
 /* no flash animation */
 
-/* reset confirm modal */
-.confirm-backdrop{
+/* ── SHARED MODAL PATTERN ──
+   Used by: reset confirm, qty popover, profile name prompt,
+   delete/switch profile confirm, and (with .fullscreen) the
+   first-launch and settings screens. One backdrop+box system
+   instead of several near-duplicate ones. */
+.modal-backdrop{
   position:fixed;inset:0;background:rgba(0,0,0,0.75);
   z-index:80;display:flex;align-items:center;justify-content:center;
   opacity:0;pointer-events:none;transition:opacity 0.15s;
 }
-/* Modals that need to appear ON TOP of the settings screen (z-index 90) */
-.above-settings{z-index:96 !important;}
-.confirm-backdrop.open{opacity:1;pointer-events:auto;}
-.confirm-box{
+.modal-backdrop.open{opacity:1;pointer-events:auto;}
+/* Modals that must render above the settings screen (z-index 90) */
+.modal-backdrop.above-settings{z-index:96;}
+/* Full-screen variant (settings panel, first-launch) instead of a centered box */
+.modal-backdrop.fullscreen{background:#0a0c0f;}
+
+.modal-box{
   background:#181c26;border:1px solid rgba(255,255,255,0.12);
   border-radius:16px;padding:22px 20px 16px;
   display:flex;flex-direction:column;align-items:center;gap:14px;
   min-width:220px;
 }
-.confirm-title{
+.modal-title{
   font-family:'Cinzel',serif;font-size:0.8rem;
   letter-spacing:0.15em;color:rgba(255,255,255,0.7);text-align:center;
 }
-.confirm-sub{
+.modal-title strong{color:var(--mc,#fff);}
+.modal-sub{
   font-size:0.68rem;color:rgba(255,255,255,0.3);
   font-family:'Cinzel',serif;letter-spacing:0.08em;
   text-align:center;margin-top:-8px;
 }
-.confirm-btns{display:flex;gap:8px;width:100%;}
-.confirm-btn{
+.modal-btns{display:flex;gap:8px;width:100%;}
+.modal-btn{
   flex:1;height:42px;border-radius:10px;cursor:pointer;
   font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;
   border:1px solid rgba(255,255,255,0.12);
   background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.5);
 }
-.confirm-btn:active{opacity:0.7;}
-.confirm-btn.danger{
+.modal-btn:active{opacity:0.7;}
+.modal-btn.danger{
   background:rgba(220,70,60,0.2);border-color:rgba(220,70,60,0.5);
   color:rgba(255,120,110,0.9);
 }
+.modal-btn.accent{
+  background:rgba(96,180,232,0.18);border-color:rgba(96,180,232,0.5);
+  color:#60b4e8;
+}
+
+/* Quantity stepper, used inside .modal-box for the mod-quantity popover */
+.qty-row{display:flex;align-items:center;gap:16px;}
+.qty-btn{
+  width:44px;height:44px;border-radius:10px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);
+  color:#e8e4dc;font-size:1.4rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.qty-btn:active{background:rgba(255,255,255,0.18);}
+.qty-val{
+  font-size:2.5rem;font-weight:700;color:#fff;
+  min-width:40px;text-align:center;font-family:'Oswald',sans-serif;
+}
+.mod-qty-badge{
+  position:absolute;top:4px;right:4px;
+  background:rgba(0,0,0,0.7);border-radius:4px;
+  padding:1px 4px;font-family:'Cinzel',serif;
+  font-size:0.5rem;letter-spacing:0.05em;color:#fff;
+  z-index:2;pointer-events:none;
+}
+
+/* Plain text input shared by name prompts (profile name, etc) */
+.modal-text-input{
+  width:100%;height:44px;border-radius:10px;
+  border:1px solid rgba(255,255,255,0.15);background:#1a1e26;
+  color:#e8e4dc;font-family:'Oswald',sans-serif;font-size:0.85rem;
+  padding:0 14px;outline:none;text-align:center;
+}
+.modal-text-input::placeholder{color:rgba(255,255,255,0.25);}
 
 /* ── DRAWER ── */
 .backdrop{
@@ -322,55 +399,10 @@ body{
 }
 .mod-action-tile:active{background:rgba(255,255,255,0.09);}
 
-/* quantity popover */
-.qty-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,0.75);
-  z-index:80;display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity 0.15s;
-}
-.qty-backdrop.open{opacity:1;pointer-events:auto;}
-.qty-box{
-  background:#181c26;border:1px solid rgba(255,255,255,0.12);
-  border-radius:16px;padding:18px 20px 14px;
-  display:flex;flex-direction:column;align-items:center;gap:12px;min-width:200px;
-}
-.qty-title{
-  font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;
-  color:rgba(255,255,255,0.5);text-align:center;
-}
-.qty-title strong{color:var(--qc,#fff);}
-.qty-row{display:flex;align-items:center;gap:16px;}
-.qty-btn{
-  width:44px;height:44px;border-radius:10px;cursor:pointer;
-  border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);
-  color:#e8e4dc;font-size:1.4rem;font-weight:700;
-  display:flex;align-items:center;justify-content:center;
-}
-.qty-btn:active{background:rgba(255,255,255,0.18);}
-.qty-val{
-  font-size:2.5rem;font-weight:700;color:#fff;
-  min-width:40px;text-align:center;font-family:'Oswald',sans-serif;
-}
-.qty-done{
-  height:36px;padding:0 24px;border-radius:8px;cursor:pointer;
-  border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);
-  color:#e8e4dc;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;
-}
-.mod-qty-badge{
-  position:absolute;top:4px;right:4px;
-  background:rgba(0,0,0,0.7);border-radius:4px;
-  padding:1px 4px;font-family:'Cinzel',serif;
-  font-size:0.5rem;letter-spacing:0.05em;color:#fff;
-  z-index:2;pointer-events:none;
-}
+/* (qty stepper styles consolidated into the shared modal pattern above) */
 
-/* ── SETTINGS SCREEN ── */
-.settings-backdrop{
-  position:fixed;inset:0;background:#0a0c0f;
-  z-index:90;display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity 0.2s;
-}
-.settings-backdrop.open{opacity:1;pointer-events:auto;}
+/* ── SETTINGS SCREEN ── (uses .modal-backdrop.fullscreen, z-index raised so qty/confirm modals can sit above it via .above-settings) */
+.settings-backdrop{z-index:90;}
 .settings-panel{
   width:100%;height:100%;display:flex;flex-direction:column;
   max-width:600px;margin:0 auto;
@@ -538,21 +570,8 @@ body{
 }
 .profile-btn.danger:active{background:rgba(220,70,60,0.25);}
 
-.profile-name-input{
-  width:100%;height:44px;border-radius:10px;
-  border:1px solid rgba(255,255,255,0.15);background:#1a1e26;
-  color:#e8e4dc;font-family:'Oswald',sans-serif;font-size:0.85rem;
-  padding:0 14px;outline:none;text-align:center;
-}
-.profile-name-input::placeholder{color:rgba(255,255,255,0.25);}
 
-/* ── FIRST LAUNCH SCREEN ── */
-.firstlaunch-backdrop{
-  position:fixed;inset:0;background:#0a0c0f;
-  z-index:95;display:flex;align-items:center;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity 0.2s;
-}
-.firstlaunch-backdrop.open{opacity:1;pointer-events:auto;}
+/* ── FIRST LAUNCH SCREEN ── (uses .modal-backdrop.fullscreen) */
 .firstlaunch-box{
   display:flex;flex-direction:column;align-items:center;gap:18px;
   padding:32px 28px;max-width:380px;width:90%;
@@ -565,12 +584,6 @@ body{
   font-size:0.78rem;color:rgba(255,255,255,0.4);text-align:center;
   line-height:1.6;
 }
-.firstlaunch-create{
-  width:100%;height:48px;border-radius:10px;cursor:pointer;
-  background:rgba(96,180,232,0.18);border:1px solid rgba(96,180,232,0.5);
-  color:#60b4e8;font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;
-}
-.firstlaunch-create:active{background:rgba(96,180,232,0.3);}
 </style>
 </head>
 <body>
@@ -585,6 +598,7 @@ body{
     <button class="tbar-btn create" onclick="bulkCreate()">CREATE</button>
   </div>
   <div class="topbar-right">
+    <button class="tbar-btn undo" id="undoBtn" onclick="undo()" title="Undo last action">↺ UNDO</button>
     <button class="tbar-btn untap" onclick="untapAll()"><svg style="width:14px;height:14px;display:inline-block;vertical-align:middle;transform:rotate(180deg);flex-shrink:0" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg"><path d="m512 353.5-216 0 79.1-56.3c-29.4-23.3-63.4-35-101.9-35-19.3 0-32.5 3.7-39.5 11-7.1 7.4-10.7 20.7-10.7 39.9 0 53.2 27.4 110 82.2 170.4l-62.3 63.1c-72.5-88.2-108.8-167.1-108.8-236.5 0-41.6 12.5-74.7 37.6-99.3 25.1-24.6 58.5-36.9 100-36.9 50.7 0 106 19.3 165.9 57.8l46.4-79.1 28.2 200.8" fill="currentColor"/></svg> ALL</button>
     <button class="tbar-btn" onclick="openDrawer()">
       MODS <div class="mod-pips" id="modPips"></div>
@@ -601,30 +615,30 @@ body{
   <div class="mods-grid" id="modsGrid"></div>
 </div>
 
-<div class="qty-backdrop" id="qtyBackdrop" onclick="closeQty()">
-  <div class="qty-box" onclick="event.stopPropagation()">
-    <div class="qty-title">Copies of <strong id="qtyName"></strong></div>
+<div class="modal-backdrop" id="qtyBackdrop" data-modal="qtyBackdrop">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Copies of <strong id="qtyName"></strong></div>
     <div class="qty-row">
       <button class="qty-btn" onclick="adjustQty(-1)">−</button>
       <div class="qty-val" id="qtyVal">1</div>
       <button class="qty-btn" onclick="adjustQty(1)">+</button>
     </div>
-    <button class="qty-done" onclick="closeQty()">DONE</button>
+    <button class="modal-btn accent" style="width:100%;" onclick="closeQty()">DONE</button>
   </div>
 </div>
 
-<div class="confirm-backdrop" id="confirmBackdrop">
-  <div class="confirm-box">
-    <div class="confirm-title">RESET ALL?</div>
-    <div class="confirm-sub">Clears all tokens &amp; modifiers</div>
-    <div class="confirm-btns">
-      <button class="confirm-btn" onclick="closeConfirm()">CANCEL</button>
-      <button class="confirm-btn danger" onclick="confirmReset()">RESET</button>
+<div class="modal-backdrop" id="confirmBackdrop" data-modal="confirmBackdrop">
+  <div class="modal-box">
+    <div class="modal-title">RESET ALL?</div>
+    <div class="modal-sub">Clears all tokens &amp; modifiers</div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeConfirm()">CANCEL</button>
+      <button class="modal-btn danger" onclick="confirmReset()">RESET</button>
     </div>
   </div>
 </div>
 
-<div class="settings-backdrop" id="settingsBackdrop">
+<div class="modal-backdrop fullscreen" id="settingsBackdrop" data-modal="settingsBackdrop">
   <div class="settings-panel">
     <div class="settings-header">
       <div class="settings-title">SETTINGS</div>
@@ -654,50 +668,51 @@ body{
 </div>
 
 <!-- First-launch: forces creating a profile before the app is usable -->
-<div class="firstlaunch-backdrop" id="firstLaunchBackdrop">
+<div class="modal-backdrop fullscreen" id="firstLaunchBackdrop" data-modal="firstLaunchBackdrop">
   <div class="firstlaunch-box">
     <div class="firstlaunch-title">WELCOME TO MANUFACTOR</div>
     <div class="firstlaunch-sub">Create a deck profile to get started.<br>Each profile remembers which 4 token types and which modifiers your deck uses.</div>
-    <input type="text" id="firstLaunchName" class="profile-name-input" placeholder="Deck name" maxlength="40">
-    <button class="firstlaunch-create" onclick="createFirstProfile()">CREATE PROFILE</button>
+    <input type="text" id="firstLaunchName" class="modal-text-input" placeholder="Deck name" maxlength="40">
+    <button class="modal-btn accent" style="width:100%;height:48px;" onclick="createFirstProfile()">CREATE PROFILE</button>
   </div>
 </div>
 
 <!-- New / Rename profile name prompt -->
-<div class="qty-backdrop above-settings" id="profileNameBackdrop">
-  <div class="qty-box">
-    <div class="qty-title" id="profileNamePromptTitle">New Profile</div>
-    <input type="text" id="profileNameInput" class="profile-name-input" placeholder="Deck name" maxlength="40">
-    <div class="confirm-btns" style="width:100%;">
-      <button class="confirm-btn" onclick="closeProfileNamePrompt()">CANCEL</button>
-      <button class="confirm-btn danger" id="profileNameConfirmBtn" onclick="confirmProfileName()">CREATE</button>
+<div class="modal-backdrop above-settings" id="profileNameBackdrop" data-modal="profileNameBackdrop">
+  <div class="modal-box">
+    <div class="modal-title" id="profileNamePromptTitle">New Profile</div>
+    <input type="text" id="profileNameInput" class="modal-text-input" placeholder="Deck name" maxlength="40">
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeProfileNamePrompt()">CANCEL</button>
+      <button class="modal-btn danger" id="profileNameConfirmBtn" onclick="confirmProfileName()">CREATE</button>
     </div>
   </div>
 </div>
 
 <!-- Delete profile confirm -->
-<div class="confirm-backdrop above-settings" id="deleteProfileBackdrop">
-  <div class="confirm-box">
-    <div class="confirm-title">DELETE PROFILE?</div>
-    <div class="confirm-sub" id="deleteProfileSub">This cannot be undone.</div>
-    <div class="confirm-btns">
-      <button class="confirm-btn" onclick="closeDeleteProfileConfirm()">CANCEL</button>
-      <button class="confirm-btn danger" onclick="confirmDeleteProfile()">DELETE</button>
+<div class="modal-backdrop above-settings" id="deleteProfileBackdrop" data-modal="deleteProfileBackdrop">
+  <div class="modal-box">
+    <div class="modal-title">DELETE PROFILE?</div>
+    <div class="modal-sub" id="deleteProfileSub">This cannot be undone.</div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeDeleteProfileConfirm()">CANCEL</button>
+      <button class="modal-btn danger" onclick="confirmDeleteProfile()">DELETE</button>
     </div>
   </div>
 </div>
 
 <!-- Switch profile confirm (board reset warning) -->
-<div class="confirm-backdrop above-settings" id="switchProfileBackdrop">
-  <div class="confirm-box">
-    <div class="confirm-title">SWITCH PROFILE?</div>
-    <div class="confirm-sub">This clears the current board &amp; modifiers.</div>
-    <div class="confirm-btns">
-      <button class="confirm-btn" onclick="closeSwitchProfileConfirm()">CANCEL</button>
-      <button class="confirm-btn danger" onclick="confirmSwitchProfile()">SWITCH</button>
+<div class="modal-backdrop above-settings" id="switchProfileBackdrop" data-modal="switchProfileBackdrop">
+  <div class="modal-box">
+    <div class="modal-title">SWITCH PROFILE?</div>
+    <div class="modal-sub">This clears the current board &amp; modifiers.</div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeSwitchProfileConfirm()">CANCEL</button>
+      <button class="modal-btn danger" onclick="confirmSwitchProfile()">SWITCH</button>
     </div>
   </div>
 </div>
+
 
 <script>
 // ── Full known libraries (append-only as new cards get added) ──────
@@ -739,6 +754,13 @@ var MOD_LIBRARY = [
   // ── Sacrifice trigger ──
   { id:'vending',     name:'Nuke-Cola',                     mc:'#e8b84b', img:'img/nuka-cola-vending-machine.jpg',     mechanic:'vending' },
 ];
+
+// ── Generic modal helpers ────────────────────────────────────────
+// Every modal in this app is a backdrop div toggled via the 'open' class.
+// These two functions replace what used to be ~14 near-identical
+// open/close function bodies scattered through the file.
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── Profiles (each profile = one deck's setup) ─────────────────────
 var STORAGE_KEY = 'manufactor_profiles_v1';
@@ -783,6 +805,16 @@ var modOn = {};
 MODS.forEach(function(m){ modOn[m.id] = 0; });
 var state = {};
 TT.forEach(function(t){ state[t] = { u:0, ta:0 }; });
+
+// If this profile has a saved in-progress board (from a previous session
+// that didn't end in Reset All), restore it now instead of starting empty.
+if (activeProfileId) {
+  var savedBoard = loadBoardState(activeProfileId);
+  if (savedBoard) {
+    TT.forEach(function(t){ if (savedBoard.state && savedBoard.state[t]) state[t] = savedBoard.state[t]; });
+    MODS.forEach(function(m){ if (savedBoard.modOn && typeof savedBoard.modOn[m.id] === 'number') modOn[m.id] = savedBoard.modOn[m.id]; });
+  }
+}
 
 function persistCurrentBoardToProfile() {
   // Saves TT/MODS (NOT live counts/quantities) back into the active profile record
@@ -926,8 +958,86 @@ function runCreate(tokens, fromVending) {
 
 function snapshot() { return TT.map(function(t){ return state[t].u+state[t].ta; }); }
 
+// ── Action history (for the +X badges and Undo button) ──────────────
+// Every user-facing action wraps itself with beginAction()/endAction(),
+// which diffs `state` before vs after and pushes one history entry
+// capturing the full per-type {u,ta} deltas. The +X badge reads the
+// most recent entry's deltas; Undo pops it and reverses them exactly.
+var actionHistory = [];
+var MAX_HISTORY = 20; // how many undo steps to keep
+function cloneState() {
+  var c = {};
+  TT.forEach(function(t){ c[t] = { u: state[t].u, ta: state[t].ta }; });
+  return c;
+}
+function beginAction() { return cloneState(); }
+function endAction(before) {
+  var after = cloneState();
+  var deltas = {};
+  var changed = false;
+  TT.forEach(function(t){
+    var du = after[t].u  - before[t].u;
+    var dta = after[t].ta - before[t].ta;
+    if (du !== 0 || dta !== 0) { deltas[t] = { u: du, ta: dta }; changed = true; }
+  });
+  if (changed) {
+    actionHistory.push(deltas);
+    if (actionHistory.length > MAX_HISTORY) actionHistory.shift();
+    showDeltaBadges(deltas);
+  }
+}
+function undo() {
+  var deltas = actionHistory.pop();
+  if (!deltas) return;
+  Object.keys(deltas).forEach(function(t){
+    if (!state[t]) return; // token type no longer active, nothing to reverse visually
+    state[t].u  -= deltas[t].u;
+    state[t].ta -= deltas[t].ta;
+    // clamp defensively so a partial/edge-case undo never goes negative
+    if (state[t].u  < 0) state[t].u  = 0;
+    if (state[t].ta < 0) state[t].ta = 0;
+  });
+  render();
+}
+
+var deltaStackCount = {}; // type -> how many popups currently stacked, so new ones spawn above
+function showDeltaBadges(deltas) {
+  Object.keys(deltas).forEach(function(t){
+    var net = deltas[t].u + deltas[t].ta;
+    if (net === 0) return;
+    var container = document.getElementById('delta-'+t);
+    if (!container) return; // token type not currently on the grid
+
+    var stackIndex = deltaStackCount[t] || 0;
+    deltaStackCount[t] = stackIndex + 1;
+
+    var sign = net > 0 ? '+' : '−';
+    var popup = document.createElement('div');
+    popup.className = 'tok-delta-popup' + (net > 0 ? ' positive' : ' negative');
+    popup.textContent = sign + Math.abs(net);
+    // each new popup starts a bit further down than the last still-visible
+    // one, so rapid taps cascade upward past each other instead of overlapping
+    popup.style.top = (stackIndex * 26) + 'px';
+    container.appendChild(popup);
+
+    // trigger the rise+fade animation on the next frame (so the initial
+    // state actually paints before the transition starts)
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        popup.classList.add('rise');
+      });
+    });
+
+    setTimeout(function(){
+      if (popup.parentNode) popup.parentNode.removeChild(popup);
+      deltaStackCount[t] = Math.max(0, (deltaStackCount[t]||1) - 1);
+    }, 1100);
+  });
+}
+
 // ── Core action ───────────────────────────────────────────────────
 function doAction(type, sk, delta, doFlash) {
+  var before = beginAction();
   if (delta > 0) {
     runCreate([{ type:type, tapped:(sk==='ta') }]);
   } else {
@@ -945,6 +1055,7 @@ function doAction(type, sk, delta, doFlash) {
       }
     }
   }
+  endAction(before);
   render();
 }
 
@@ -959,8 +1070,8 @@ function untapAll() {
   TT.forEach(function(t){ state[t].u += state[t].ta; state[t].ta = 0; });
   render();
 }
-function openConfirm()  { document.getElementById('confirmBackdrop').classList.add('open'); }
-function closeConfirm() { document.getElementById('confirmBackdrop').classList.remove('open'); }
+function openConfirm()  { openModal('confirmBackdrop'); }
+function closeConfirm() { closeModal('confirmBackdrop'); }
 function confirmReset() { closeConfirm(); closeDrawer(); resetAll(); }
 
 function rebuildCreateDropdown() {
@@ -983,17 +1094,39 @@ function bulkCreate() {
   var amt  = Math.max(1, parseInt(document.getElementById('createAmt').value) || 1);
   var tokens = [];
   for (var i = 0; i < amt; i++) tokens.push({ type:type, tapped:false });
+  var before = beginAction();
   runCreate(tokens);
+  endAction(before);
   render();
 }
 
 function resetAll() {
   TT.forEach(function(t){ state[t].u = 0; state[t].ta = 0; });
   MODS.forEach(function(m){ modOn[m.id] = 0; });
+  actionHistory = []; // undo shouldn't reach back past a full reset
   renderMods(); render();
 }
 
 // ── Render ────────────────────────────────────────────────────────
+var BOARD_STORAGE_PREFIX = 'manufactor_board_';
+
+function persistBoardState() {
+  if (!activeProfileId) return;
+  try {
+    localStorage.setItem(BOARD_STORAGE_PREFIX + activeProfileId, JSON.stringify({ state: state, modOn: modOn }));
+  } catch(e) { /* localStorage unavailable or full, ignore */ }
+}
+function loadBoardState(profileId) {
+  try {
+    var raw = localStorage.getItem(BOARD_STORAGE_PREFIX + profileId);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+function clearBoardState(profileId) {
+  try { localStorage.removeItem(BOARD_STORAGE_PREFIX + profileId); } catch(e) {}
+}
+
 function render() {
   TT.forEach(function(type) {
     var s = state[type];
@@ -1010,6 +1143,9 @@ function render() {
     d.className = 'mod-pip' + (modOn[m.id] > 0 ? ' on' : '');
     pips.appendChild(d);
   });
+  var undoBtn = document.getElementById('undoBtn');
+  if (undoBtn) undoBtn.disabled = actionHistory.length === 0;
+  persistBoardState();
 }
 
 // ── Build DOM ─────────────────────────────────────────────────────
@@ -1092,6 +1228,12 @@ function buildGrid() {
     scrim.className = 'tok-scrim';
     card.appendChild(scrim);
 
+    // Delta popup container ("+3" etc spawn inside here, transiently)
+    var deltaContainer = document.createElement('div');
+    deltaContainer.className = 'tok-delta-container';
+    deltaContainer.id = 'delta-'+type;
+    card.appendChild(deltaContainer);
+
     // Name
     var name = document.createElement('div');
     name.className = 'tok-name';
@@ -1129,13 +1271,13 @@ function openQty(mod) {
   document.getElementById('qtyName').textContent = mod.name;
   document.getElementById('qtyName').style.color = mod.mc;
   document.getElementById('qtyVal').textContent = modOn[mod.id] || 1;
-  document.getElementById('qtyBackdrop').classList.add('open');
+  openModal('qtyBackdrop');
 }
 function closeQty() {
   if (qtyCurrentId) {
     modOn[qtyCurrentId] = parseInt(document.getElementById('qtyVal').textContent);
   }
-  document.getElementById('qtyBackdrop').classList.remove('open');
+  closeModal('qtyBackdrop');
   qtyCurrentId = null;
   renderMods(); render();
 }
@@ -1204,8 +1346,8 @@ function renderMods() {
   grid.appendChild(actionsDiv);
 }
 
-function openDrawer()  { document.getElementById('backdrop').classList.add('open'); document.getElementById('drawer').classList.add('open'); }
-function closeDrawer() { document.getElementById('backdrop').classList.remove('open'); document.getElementById('drawer').classList.remove('open'); }
+function openDrawer()  { openModal('backdrop');  openModal('drawer'); }
+function closeDrawer() { closeModal('backdrop'); closeModal('drawer'); }
 
 // ── Settings screen ───────────────────────────────────────────────
 var pendingTokens = [];   // working copy while settings is open
@@ -1217,10 +1359,10 @@ function openSettings() {
   renderProfileSelect();
   renderSettingsTokens();
   renderSettingsMods();
-  document.getElementById('settingsBackdrop').classList.add('open');
+  openModal('settingsBackdrop');
 }
 function closeSettings() {
-  document.getElementById('settingsBackdrop').classList.remove('open');
+  closeModal('settingsBackdrop');
 }
 
 function renderProfileSelect() {
@@ -1432,7 +1574,7 @@ function openNewProfilePrompt() {
   document.getElementById('profileNameInput').value = '';
   document.getElementById('profileNameConfirmBtn').textContent = 'CREATE';
   profileNamePromptMode = 'create';
-  document.getElementById('profileNameBackdrop').classList.add('open');
+  openModal('profileNameBackdrop');
 }
 function openRenamePrompt() {
   var p = getActiveProfile();
@@ -1441,10 +1583,10 @@ function openRenamePrompt() {
   document.getElementById('profileNameInput').value = p.name;
   document.getElementById('profileNameConfirmBtn').textContent = 'SAVE';
   profileNamePromptMode = 'rename';
-  document.getElementById('profileNameBackdrop').classList.add('open');
+  openModal('profileNameBackdrop');
 }
 function closeProfileNamePrompt() {
-  document.getElementById('profileNameBackdrop').classList.remove('open');
+  closeModal('profileNameBackdrop');
 }
 var profileNamePromptMode = 'create';
 function confirmProfileName() {
@@ -1479,14 +1621,16 @@ function openDeleteProfileConfirm() {
   var p = getActiveProfile();
   if (!p) return;
   document.getElementById('deleteProfileSub').textContent = 'Delete "' + p.name + '"? This cannot be undone.';
-  document.getElementById('deleteProfileBackdrop').classList.add('open');
+  openModal('deleteProfileBackdrop');
 }
 function closeDeleteProfileConfirm() {
-  document.getElementById('deleteProfileBackdrop').classList.remove('open');
+  closeModal('deleteProfileBackdrop');
 }
 function confirmDeleteProfile() {
   var idx = profiles.findIndex(function(p){ return p.id === activeProfileId; });
+  var deletedId = activeProfileId;
   if (idx !== -1) profiles.splice(idx, 1);
+  if (deletedId) clearBoardState(deletedId); // don't leave an orphaned board save behind
 
   if (profiles.length === 0) {
     // No profiles left — drop back to first-launch gate
@@ -1510,9 +1654,9 @@ function confirmDeleteProfile() {
 }
 
 var pendingSwitchProfileId = null;
-function openSwitchProfileConfirm() { document.getElementById('switchProfileBackdrop').classList.add('open'); }
+function openSwitchProfileConfirm() { openModal('switchProfileBackdrop'); }
 function closeSwitchProfileConfirm() {
-  document.getElementById('switchProfileBackdrop').classList.remove('open');
+  closeModal('switchProfileBackdrop');
   renderProfileSelect(); // revert dropdown to actual active profile if cancelled
 }
 function confirmSwitchProfile() {
@@ -1525,7 +1669,7 @@ function confirmSwitchProfile() {
   pendingMods = MODS.map(function(m){ return m.id; });
   renderSettingsTokens();
   renderSettingsMods();
-  document.getElementById('switchProfileBackdrop').classList.remove('open');
+  closeModal('switchProfileBackdrop');
 }
 
 function loadActiveProfileIntoApp() {
@@ -1535,6 +1679,15 @@ function loadActiveProfileIntoApp() {
   MODS = MOD_LIBRARY.filter(function(m){ return p.enabledMods.indexOf(m.id) !== -1; });
   state = {}; TT.forEach(function(t){ state[t] = { u:0, ta:0 }; });
   modOn = {}; MODS.forEach(function(m){ modOn[m.id] = 0; });
+  actionHistory = []; // a different deck's history shouldn't carry over
+
+  // Restore this profile's saved in-progress board, if it has one
+  var savedBoard = loadBoardState(p.id);
+  if (savedBoard) {
+    TT.forEach(function(t){ if (savedBoard.state && savedBoard.state[t]) state[t] = savedBoard.state[t]; });
+    MODS.forEach(function(m){ if (savedBoard.modOn && typeof savedBoard.modOn[m.id] === 'number') modOn[m.id] = savedBoard.modOn[m.id]; });
+  }
+
   rebuildCreateDropdown();
   buildGrid();
   renderMods();
@@ -1542,12 +1695,8 @@ function loadActiveProfileIntoApp() {
 }
 
 // ── First launch gate ────────────────────────────────────────────
-function showFirstLaunch() {
-  document.getElementById('firstLaunchBackdrop').classList.add('open');
-}
-function hideFirstLaunch() {
-  document.getElementById('firstLaunchBackdrop').classList.remove('open');
-}
+function showFirstLaunch() { openModal('firstLaunchBackdrop'); }
+function hideFirstLaunch()  { closeModal('firstLaunchBackdrop'); }
 function createFirstProfile() {
   var name = document.getElementById('firstLaunchName').value.trim();
   if (!name) { alert('Please enter a deck name.'); return; }
