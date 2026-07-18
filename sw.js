@@ -1,4 +1,4 @@
-const CACHE = 'manufactor-v1.8';
+const CACHE = 'manufactor-v1.9';
 const FILES = [
   '/manufactor/',
   '/manufactor/index.html',
