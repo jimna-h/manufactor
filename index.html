@@ -766,7 +766,7 @@ var MOD_LIBRARY = [
   { id:'helm',        name:'Worldwalker Helm',             mc:'#e87860', img:'img/worldwalker-helm.jpg',              mechanic:'addArtifactToken', addsTokenType:'map' },
 
   // ── Adds extra only when a specific token type is already being made (alphabetical) ──
-  { id:'bilbo',       name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'food' },
+  { id:'bilbo',       name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'replaceToken', triggersOnType:'food', addsTokenType:'treasure' },
   { id:'jolene',      name:'Jolene',                        mc:'#4ecba8', img:'img/jolene-the-plunder-queen.jpg',      mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
   { id:'xorn',        name:'Xorn',                          mc:'#4ecba8', img:'img/xorn.jpg',                          mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
 
@@ -943,6 +943,24 @@ function runCreate(tokens, fromVending) {
         if (hasArtifact) {
           for (var i = 0; i < n; i++) batch.push({ type:mod.addsTokenType, tapped:tapped });
         }
+      }
+    }
+  });
+
+  // Step 1c: replaceToken — e.g. Bilbo: for each Food in the batch, also add a Treasure.
+  // Each copy of the mod adds one extra token per matching token in the batch.
+  // Runs before Manufactor so the extras also get tripled.
+  MODS.forEach(function(mod) {
+    if (mod.mechanic === 'replaceToken') {
+      var n = modOn[mod.id] || 0;
+      if (n > 0) {
+        var toAdd = [];
+        batch.forEach(function(tok) {
+          if (tok.type === mod.triggersOnType) {
+            for (var i = 0; i < n; i++) toAdd.push({ type:mod.addsTokenType, tapped:tok.tapped });
+          }
+        });
+        batch = batch.concat(toAdd);
       }
     }
   });
@@ -1568,12 +1586,14 @@ function renderSettingsMods() {
     var row = document.createElement('div');
     row.className = 'settings-mod-row' + (isOn ? ' on' : '');
     row.style.setProperty('--mc', mod.mc);
-    var tagText = 'doubles tokens created';
-    if (mod.mechanic === 'manufactor') tagText = 'triples Clue/Food/Treasure';
-    if (mod.mechanic === 'addToken') tagText = 'adds ' + TOKEN_LIBRARY[mod.addsTokenType].label;
-    if (mod.mechanic === 'addArtifactToken') tagText = 'adds ' + TOKEN_LIBRARY[mod.addsTokenType].label + ' on artifact creation';
-    if (mod.mechanic === 'addTokenIfPresent') tagText = 'adds extra ' + TOKEN_LIBRARY[mod.addsTokenType].label;
-    if (mod.mechanic === 'vending') tagText = 'sac Food → tapped Treasure';
+    var tl = TOKEN_LIBRARY;
+    var tagText = 'tokens → 2× tokens';
+    if (mod.mechanic === 'manufactor') tagText = 'clue, food, & treasure → clue, food, & treasure × 3';
+    if (mod.mechanic === 'addToken')         tagText = 'tokens → tokens + ' + tl[mod.addsTokenType].label.toLowerCase();
+    if (mod.mechanic === 'addArtifactToken') tagText = 'artifact tokens → artifact tokens + ' + tl[mod.addsTokenType].label.toLowerCase();
+    if (mod.mechanic === 'addTokenIfPresent') tagText = tl[mod.triggerTokenType].label.toLowerCase() + 's → ' + tl[mod.triggerTokenType].label.toLowerCase() + 's + 1';
+    if (mod.mechanic === 'replaceToken')     tagText = tl[mod.triggersOnType].label.toLowerCase() + ' → ' + tl[mod.triggersOnType].label.toLowerCase() + ' + ' + tl[mod.addsTokenType].label.toLowerCase();
+    if (mod.mechanic === 'vending')          tagText = 'sac a food: tapped treasure';
 
     var thumbImg = document.createElement('img');
     thumbImg.className = 'settings-mod-thumb';
