@@ -545,6 +545,12 @@ body{
   color:#60b4e8;font-family:'Cinzel',serif;font-size:0.7rem;letter-spacing:0.15em;
 }
 .settings-save:active{background:rgba(96,180,232,0.3);}
+.settings-refresh{
+  width:100%;height:36px;border-radius:10px;cursor:pointer;margin-top:8px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.35);font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.12em;
+}
+.settings-refresh:active{background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.6);}
 
 /* ── PROFILE BAR (inside settings) ── */
 .profile-bar{display:flex;gap:8px;}
@@ -663,6 +669,7 @@ body{
     </div>
     <div class="settings-footer">
       <button class="settings-save" onclick="saveSettings()">SAVE</button>
+      <button class="settings-refresh" onclick="forceRefresh()" title="Force the app to fetch the latest version">↻ REFRESH APP</button>
     </div>
   </div>
 </div>
@@ -724,32 +731,38 @@ var TOKEN_LIBRARY = {
   map:      { label:'Map',      c:'#e8c84b', img:'img/map-token.jpg'      },
 };
 
+// Returns token IDs sorted in TOKEN_LIBRARY's canonical display order
+function canonicalTokenOrder(ids) {
+  var order = Object.keys(TOKEN_LIBRARY);
+  return ids.slice().sort(function(a,b){ return order.indexOf(a) - order.indexOf(b); });
+}
+
 var MOD_LIBRARY = [
-  // ── Doublers ──
+  // ── Doublers (alphabetical) ──
   { id:'adrix',       name:'Adrix & Nev',                  mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg',     mechanic:'double' },
-  { id:'mondrak',     name:'Mondrak',                       mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg',         mechanic:'double' },
-  { id:'bard',        name:'Bard, King of Dale',            mc:'#e8d060', img:'img/bard-king-of-dale.jpg',             mechanic:'double' },
   { id:'procession',  name:'Anointed Procession',          mc:'#e8d8a0', img:'img/anointed-procession.jpg',           mechanic:'double' },
+  { id:'bard',        name:'Bard, King of Dale',            mc:'#e8d060', img:'img/bard-king-of-dale.jpg',             mechanic:'double' },
   { id:'doubling',    name:'Doubling Season',               mc:'#7ecb6f', img:'img/doubling-season.jpg',               mechanic:'double' },
   { id:'elspeth',     name:'Elspeth',                       mc:'#e8d060', img:'img/elspeth.jpg',                       mechanic:'double' },
   { id:'exalted',     name:'Exalted Sunborn',               mc:'#e8c060', img:'img/exalted-sunborn.jpg',               mechanic:'double' },
+  { id:'mondrak',     name:'Mondrak',                       mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg',         mechanic:'double' },
   { id:'parallel',    name:'Parallel Lives',                mc:'#7ecb6f', img:'img/parallel-lives.jpg',                mechanic:'double' },
   { id:'primal',      name:'Primal Vigor',                  mc:'#e87860', img:'img/primal-vigor.jpg',                  mechanic:'double' },
 
   // ── Replacement (triples Clue/Food/Treasure) ──
   { id:'manufactor',  name:'Academy Manufactor',           mc:'#e8d060', img:'img/academy-manufactor.jpg',            mechanic:'manufactor' },
 
-  // ── Adds a specific token every time, no condition ──
+  // ── Adds a specific token every time, no condition (alphabetical) ──
+  { id:'pilfered',    name:'Case of the Pilfered Proof',   mc:'#60b4e8', img:'img/case-of-the-pilfered-proof.jpg',    mechanic:'addToken', addsTokenType:'clue' },
+  { id:'donatello',   name:'Donatello',                     mc:'#b87ee8', img:'img/donatello-the-brains.jpg',          mechanic:'addToken', addsTokenType:'mutagen' },
   { id:'peregrin',    name:'Peregrin Took',                mc:'#7ecb6f', img:'img/peregrin-took.jpg',                 mechanic:'addToken', addsTokenType:'food' },
   { id:'tippy',       name:'Tippy-Toe',                     mc:'#7ecb6f', img:'img/tippy-toe.jpg',                     mechanic:'addToken', addsTokenType:'food' },
-  { id:'donatello',   name:'Donatello',                     mc:'#b87ee8', img:'img/donatello-the-brains.jpg',          mechanic:'addToken', addsTokenType:'mutagen' },
-  { id:'pilfered',    name:'Case of the Pilfered Proof',   mc:'#60b4e8', img:'img/case-of-the-pilfered-proof.jpg',    mechanic:'addToken', addsTokenType:'clue' },
 
   // ── Adds a token only when an artifact is created ──
   { id:'helm',        name:'Worldwalker Helm',             mc:'#e87860', img:'img/worldwalker-helm.jpg',              mechanic:'addArtifactToken', addsTokenType:'map' },
 
-  // ── Adds extra only when that same token type is already being made ──
-  { id:'bilbo',      name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'food' },
+  // ── Adds extra only when a specific token type is already being made (alphabetical) ──
+  { id:'bilbo',       name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'food' },
   { id:'jolene',      name:'Jolene',                        mc:'#4ecba8', img:'img/jolene-the-plunder-queen.jpg',      mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
   { id:'xorn',        name:'Xorn',                          mc:'#4ecba8', img:'img/xorn.jpg',                          mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
 
@@ -797,7 +810,7 @@ var activeProfileId = profileData.activeId;
 
 // Pull TT/MODS from the active profile, or fall back to empty until one exists
 var activeProfile = getActiveProfile();
-var TT = activeProfile ? activeProfile.activeTokens.slice() : [];
+var TT = activeProfile ? canonicalTokenOrder(activeProfile.activeTokens) : [];
 var META = TOKEN_LIBRARY; // alias for existing code that reads META
 var MODS = activeProfile
   ? MOD_LIBRARY.filter(function(m){ return activeProfile.enabledMods.indexOf(m.id) !== -1; })
@@ -1377,6 +1390,27 @@ function closeDrawer() { closeModal('backdrop'); closeModal('drawer'); }
 var pendingTokens = [];   // working copy while settings is open
 var pendingMods = [];
 
+function forceRefresh() {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    // Tell the SW to check for an update, then reload once it activates
+    navigator.serviceWorker.getRegistration().then(function(reg) {
+      if (reg) {
+        reg.update().then(function() {
+          // If a new SW is waiting, skip waiting and reload
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          window.location.reload(true);
+        });
+      } else {
+        window.location.reload(true);
+      }
+    });
+  } else {
+    window.location.reload(true);
+  }
+}
+
 function openSettings() {
   pendingTokens = TT.slice();
   pendingMods = MODS.map(function(m){ return m.id; });
@@ -1571,7 +1605,7 @@ function saveSettings() {
     alert('Select at least 1 token type.');
     return;
   }
-  TT = pendingTokens.slice();
+  TT = canonicalTokenOrder(pendingTokens);
   MODS = MOD_LIBRARY.filter(function(m){ return pendingMods.indexOf(m.id) !== -1; });
 
   // Rebuild state for new token set, preserving counts for tokens that survived
@@ -1699,7 +1733,7 @@ function confirmSwitchProfile() {
 function loadActiveProfileIntoApp() {
   var p = getActiveProfile();
   if (!p) return;
-  TT = p.activeTokens.slice();
+  TT = canonicalTokenOrder(p.activeTokens);
   MODS = MOD_LIBRARY.filter(function(m){ return p.enabledMods.indexOf(m.id) !== -1; });
   state = {}; TT.forEach(function(t){ state[t] = { u:0, ta:0 }; });
   modOn = {}; MODS.forEach(function(m){ modOn[m.id] = 0; });
