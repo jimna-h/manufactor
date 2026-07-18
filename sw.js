@@ -1,4 +1,4 @@
-const CACHE = 'manufactor-v1.7';
+const CACHE = 'manufactor-v1.8';
 const FILES = [
   '/manufactor/',
   '/manufactor/index.html',
@@ -47,6 +47,9 @@ const FILES = [
   '/manufactor/img/primal-vigor-alt.jpg',
   '/manufactor/img/xorn.jpg',
   '/manufactor/img/xorn-alt.jpg',
+  '/manufactor/img/bilbo.jpg',
+  '/manufactor/img/bard-king-of-dale.jpg',
+  '/manufactor/img/bard-king-of-dale-alt/jpg',
 
   '/manufactor/img/icon-192.png',
   '/manufactor/img/icon-512.png',
