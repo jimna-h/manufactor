@@ -96,9 +96,13 @@ body{
 .tbar-select{width:100px;}
 .tbar-input{width:42px;text-align:center;}
 .tbar-input::-webkit-inner-spin-button{-webkit-appearance:none;}
-.mod-pips{display:flex;gap:3px;align-items:center;}
-.mod-pip{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.1);}
+.mod-pips{display:flex;gap:2px;align-items:center;max-width:60px;flex-wrap:nowrap;}
+.mod-pip{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.1);flex-shrink:0;}
 .mod-pip.on{background:#e8c84b;}
+.mod-pip-overflow{
+  font-family:'Cinzel',serif;font-size:0.45rem;letter-spacing:0.05em;
+  color:rgba(232,200,75,0.7);flex-shrink:0;margin-left:1px;
+}
 
 /* ── GRID ── */
 .grid{
@@ -1175,11 +1179,21 @@ function render() {
     card.querySelector('.num-ta').textContent = s.ta;
   });
   var pips = document.getElementById('modPips'); pips.innerHTML = '';
-  MODS.forEach(function(m){
+  var MAX_PIPS = 5;
+  var activeMods = MODS.filter(function(m){ return modOn[m.id] > 0; });
+  var shown = MODS.slice(0, MAX_PIPS);
+  shown.forEach(function(m){
     var d = document.createElement('div');
     d.className = 'mod-pip' + (modOn[m.id] > 0 ? ' on' : '');
     pips.appendChild(d);
   });
+  if (MODS.length > MAX_PIPS) {
+    var overflow = document.createElement('div');
+    overflow.className = 'mod-pip-overflow';
+    var extraOn = activeMods.length - shown.filter(function(m){ return modOn[m.id] > 0; }).length;
+    overflow.textContent = '+' + (MODS.length - MAX_PIPS);
+    pips.appendChild(overflow);
+  }
   var undoBtn = document.getElementById('undoBtn');
   if (undoBtn) undoBtn.disabled = actionHistory.length === 0;
   persistBoardState();
@@ -1343,14 +1357,23 @@ function renderMods() {
     var holdFired = false;
     (function(m) {
       tile.addEventListener('contextmenu', function(e){ e.preventDefault(); });
-      tile.addEventListener('pointerdown', function() {
+      var startX, startY;
+      tile.addEventListener('pointerdown', function(e) {
         holdFired = false;
+        startX = e.clientX; startY = e.clientY;
         holdTimer = setTimeout(function() {
           holdFired = true;
           if (modOn[m.id] === 0) modOn[m.id] = 1;
           openQty(m);
           renderMods(); render();
         }, 500);
+      });
+      tile.addEventListener('pointermove', function(e) {
+        if (holdTimer && (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8)) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+          holdFired = true; // treat as scroll, not a tap
+        }
       });
       tile.addEventListener('pointerup', function() {
         clearTimeout(holdTimer);
