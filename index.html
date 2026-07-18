@@ -728,6 +728,7 @@ var MOD_LIBRARY = [
   // ── Doublers ──
   { id:'adrix',       name:'Adrix & Nev',                  mc:'#7ec8e8', img:'img/adrix-and-nev-twincasters.jpg',     mechanic:'double' },
   { id:'mondrak',     name:'Mondrak',                       mc:'#e8a0c0', img:'img/mondrak-glory-dominus.jpg',         mechanic:'double' },
+  { id:'bard',        name:'Bard, King of Dale',            mc:'#e8d060', img:'img/bard-king-of-dale.jpg',             mechanic:'double' },
   { id:'procession',  name:'Anointed Procession',          mc:'#e8d8a0', img:'img/anointed-procession.jpg',           mechanic:'double' },
   { id:'doubling',    name:'Doubling Season',               mc:'#7ecb6f', img:'img/doubling-season.jpg',               mechanic:'double' },
   { id:'elspeth',     name:'Elspeth',                       mc:'#e8d060', img:'img/elspeth.jpg',                       mechanic:'double' },
@@ -748,6 +749,7 @@ var MOD_LIBRARY = [
   { id:'helm',        name:'Worldwalker Helm',             mc:'#e87860', img:'img/worldwalker-helm.jpg',              mechanic:'addArtifactToken', addsTokenType:'map' },
 
   // ── Adds extra only when that same token type is already being made ──
+  { id:'bilbo',      name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'food' },
   { id:'jolene',      name:'Jolene',                        mc:'#4ecba8', img:'img/jolene-the-plunder-queen.jpg',      mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
   { id:'xorn',        name:'Xorn',                          mc:'#4ecba8', img:'img/xorn.jpg',                          mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
 
@@ -857,25 +859,57 @@ function runCreate(tokens, fromVending) {
   var tapped = tokens.every(function(t){ return t.tapped; });
   var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
 
-  // Step 1c (pre-Manufactor): addTokenIfPresent — e.g. Jolene/Xorn.
-  // If the trigger token type (Treasure) was ALREADY in the original creation
-  // event, the extra token is added now, before Manufactor — so Manufactor's
-  // triple-pass also multiplies this extra Treasure along with everything else.
-  var preManufactorTriggered = {}; // tracks which mods fired here, so we skip them post-Manufactor
-  MODS.forEach(function(mod) {
-    if (mod.mechanic === 'addTokenIfPresent') {
+  // ── addTokenIfPresent (e.g. Bilbo, Jolene, Xorn) ────────────────
+  // These are replacement effects where the player chooses the order they apply.
+  // Since you always choose the order that benefits you most, we try every
+  // permutation of active mods and pick whichever produces the most tokens.
+  // Each mod runs sequentially so earlier mods in a permutation can add tokens
+  // that later mods in the same permutation then react to (e.g. Bilbo adds a
+  // Treasure, then Jolene sees that Treasure and adds another).
+  // This is applied twice: once pre-Manufactor (for triggers present in the
+  // current batch), and once post-Manufactor (for triggers that only appeared
+  // via Manufactor's expansion). A mod only fires once total.
+  function permutations(arr) {
+    if (arr.length <= 1) return [arr.slice()];
+    var result = [];
+    arr.forEach(function(item, i) {
+      var rest = arr.slice(0,i).concat(arr.slice(i+1));
+      permutations(rest).forEach(function(p){ result.push([item].concat(p)); });
+    });
+    return result;
+  }
+  function applyPermutation(startBatch, orderedMods, tapped) {
+    var b = startBatch.slice();
+    orderedMods.forEach(function(mod) {
       var n = modOn[mod.id] || 0;
-      if (n > 0) {
-        var triggerPresentNow = tokens.some(function(t){ return t.type === mod.triggerTokenType; });
-        if (triggerPresentNow) {
-          for (var i = 0; i < n; i++) batch.push({ type:mod.addsTokenType, tapped:tapped });
-          preManufactorTriggered[mod.id] = true;
-        }
+      if (n > 0 && b.some(function(t){ return t.type === mod.triggerTokenType; })) {
+        for (var i = 0; i < n; i++) b.push({ type:mod.addsTokenType, tapped:tapped });
       }
-    }
+    });
+    return b;
+  }
+  function bestPermutation(startBatch, candidateMods, tapped) {
+    if (candidateMods.length === 0) return startBatch;
+    var best = startBatch;
+    permutations(candidateMods).forEach(function(perm) {
+      var result = applyPermutation(startBatch, perm, tapped);
+      if (result.length > best.length) best = result;
+    });
+    return best;
+  }
+
+  var ifPresentMods = MODS.filter(function(m){
+    return m.mechanic === 'addTokenIfPresent' && (modOn[m.id] || 0) > 0;
   });
 
-  // Step 1: addToken — each enabled mod adds N copies of its token, once per event
+  // Pre-Manufactor pass: only consider mods whose trigger is already in the batch
+  var preCandiates = ifPresentMods.filter(function(mod) {
+    return batch.some(function(t){ return t.type === mod.triggerTokenType; });
+  });
+  batch = bestPermutation(batch, preCandiates, tapped);
+  var firedPreManufactor = preCandiates.map(function(m){ return m.id; });
+
+  // Step 1: addToken — unconditional per-event adders (Peregrin, Tippy-Toe, etc)
   MODS.forEach(function(mod) {
     if (mod.mechanic === 'addToken') {
       var n = modOn[mod.id] || 0;
@@ -883,8 +917,7 @@ function runCreate(tokens, fromVending) {
     }
   });
 
-  // Step 1b: addArtifactToken — same as addToken, but only fires if the batch
-  // already contains an artifact token (all tracked types except 'generic')
+  // Step 1b: addArtifactToken — fires if batch contains any non-generic token
   MODS.forEach(function(mod) {
     if (mod.mechanic === 'addArtifactToken') {
       var n = modOn[mod.id] || 0;
@@ -897,7 +930,7 @@ function runCreate(tokens, fromVending) {
     }
   });
 
-  // Step 2: manufactor — apply N times in sequence per enabled copy (each pass triples Clue/Food/Treasure)
+  // Step 2: manufactor — apply N times in sequence (each pass triples Clue/Food/Treasure)
   MODS.forEach(function(mod) {
     if (mod.mechanic === 'manufactor') {
       var n = modOn[mod.id] || 0;
@@ -915,22 +948,13 @@ function runCreate(tokens, fromVending) {
     }
   });
 
-  // Step 2b (post-Manufactor): addTokenIfPresent — if the trigger type was NOT
-  // in the original event, but Manufactor's replacement just created one
-  // (e.g. a Clue got expanded into Clue+Food+Treasure), Jolene/Xorn trigger
-  // on THAT treasure-creation instead. Mods that already fired pre-Manufactor
-  // are skipped here to avoid double-firing.
-  MODS.forEach(function(mod) {
-    if (mod.mechanic === 'addTokenIfPresent' && !preManufactorTriggered[mod.id]) {
-      var n = modOn[mod.id] || 0;
-      if (n > 0) {
-        var triggerPresentAfter = batch.some(function(t){ return t.type === mod.triggerTokenType; });
-        if (triggerPresentAfter) {
-          for (var i = 0; i < n; i++) batch.push({ type:mod.addsTokenType, tapped:tapped });
-        }
-      }
-    }
+  // Post-Manufactor pass: mods that didn't fire pre-Manufactor, but whose
+  // trigger now appears in the batch thanks to Manufactor's expansion
+  var postCandidates = ifPresentMods.filter(function(mod) {
+    return firedPreManufactor.indexOf(mod.id) === -1 &&
+           batch.some(function(t){ return t.type === mod.triggerTokenType; });
   });
+  batch = bestPermutation(batch, postCandidates, tapped);
 
   // Step 3: double — every enabled doubler (any quantity) multiplies the batch by 2^n
   var mul = 1;
