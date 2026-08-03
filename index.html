@@ -104,6 +104,27 @@ body{
   color:rgba(232,200,75,0.7);flex-shrink:0;margin-left:1px;
 }
 
+/* ── GENERIC ARTIFACT/CREATURE FLAG CHIPS ── */
+.generic-flags-row{
+  display:none; /* toggled on via JS when relevant */
+  align-items:center;gap:6px;
+  padding:3px 8px;flex-shrink:0;
+}
+.generic-flags-row.show{display:flex;}
+.generic-flags-label{
+  font-family:'Cinzel',serif;font-size:0.52rem;letter-spacing:0.06em;
+  color:rgba(255,255,255,0.3);text-transform:uppercase;
+}
+.generic-flag-chip{
+  height:22px;padding:0 10px;border-radius:11px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);
+  color:rgba(255,255,255,0.45);font-family:'Cinzel',serif;font-size:0.56rem;letter-spacing:0.05em;
+}
+.generic-flag-chip.on{
+  background:rgba(96,180,232,0.18);border-color:rgba(96,180,232,0.5);color:#60b4e8;
+}
+.generic-flag-chip:active{opacity:0.7;}
+
 /* ── GRID ── */
 .grid{
   flex:1;display:grid;
@@ -349,6 +370,52 @@ body{
   padding:0 14px;outline:none;text-align:center;
 }
 .modal-text-input::placeholder{color:rgba(255,255,255,0.25);}
+
+/* ── FLITWING POPUPS ── */
+.flitwing-box{max-width:340px;width:92%;}
+.flitwing-options{display:flex;flex-direction:column;gap:8px;width:100%;}
+.flitwing-option{
+  border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+  padding:10px 12px;cursor:pointer;background:rgba(255,255,255,0.03);
+  text-align:left;
+}
+.flitwing-option:active{background:rgba(255,255,255,0.08);}
+.flitwing-option-label{
+  font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:0.08em;
+  color:#e8e4dc;margin-bottom:5px;
+}
+.flitwing-option-breakdown{
+  display:flex;flex-wrap:wrap;gap:5px;
+}
+.flitwing-chip{
+  font-family:'Oswald',sans-serif;font-size:0.62rem;
+  padding:2px 7px;border-radius:5px;
+  background:rgba(96,180,232,0.15);color:#60b4e8;
+  border:1px solid rgba(96,180,232,0.3);
+}
+.flitwing-option-breakdown:empty::after{
+  content:'nothing created';
+  font-size:0.6rem;color:rgba(255,255,255,0.25);font-style:italic;
+}
+.flitwing-lock-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:0.66rem;color:rgba(255,255,255,0.5);
+  font-family:'Cinzel',serif;letter-spacing:0.04em;
+  margin-top:2px;cursor:pointer;
+}
+.flitwing-lock-row input{width:15px;height:15px;flex-shrink:0;}
+
+.flitwing-lock-options{display:flex;flex-direction:column;gap:8px;width:100%;}
+.flitwing-lock-option{
+  border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+  padding:11px 12px;cursor:pointer;background:rgba(255,255,255,0.03);
+  font-family:'Cinzel',serif;font-size:0.66rem;letter-spacing:0.06em;
+  color:rgba(255,255,255,0.6);text-align:left;
+}
+.flitwing-lock-option.active{
+  border-color:#60b4e8;background:rgba(96,180,232,0.12);color:#60b4e8;
+}
+.flitwing-lock-option:active{background:rgba(255,255,255,0.08);}
 
 /* ── DRAWER ── */
 .backdrop{
@@ -601,7 +668,7 @@ body{
 <div class="topbar">
   <div class="topbar-title">MANUFACTOR</div>
   <div class="topbar-center">
-    <select id="createType" class="tbar-select">
+    <select id="createType" class="tbar-select" onchange="updateGenericFlagsVisibility()">
       <option value="generic" selected>Generic</option>
     </select>
     <input type="number" id="createAmt" class="tbar-input" value="1" min="1" max="99">
@@ -615,6 +682,12 @@ body{
     </button>
     <button class="tbar-btn gear" onclick="openSettings()" title="Settings">⚙</button>
   </div>
+</div>
+
+<div class="generic-flags-row" id="genericFlagsRow">
+  <span class="generic-flags-label">this token is:</span>
+  <button class="generic-flag-chip" id="genericArtifactChip" onclick="toggleGenericFlag('artifact')">Artifact</button>
+  <button class="generic-flag-chip" id="genericCreatureChip" onclick="toggleGenericFlag('creature')">Creature</button>
 </div>
 
 <div class="grid" id="tokenGrid"></div>
@@ -724,6 +797,29 @@ body{
   </div>
 </div>
 
+<!-- Flitwing: per-event choice popup (shown when active & unlocked) -->
+<div class="modal-backdrop above-settings" id="flitwingChoiceBackdrop" data-modal="flitwingChoiceBackdrop">
+  <div class="modal-box flitwing-box">
+    <div class="modal-title">Flitwing, Lyev Detective</div>
+    <div class="modal-sub">Convert to Clues?</div>
+    <div class="flitwing-options" id="flitwingOptions"></div>
+    <label class="flitwing-lock-row">
+      <input type="checkbox" id="flitwingLockCheckbox">
+      <span>Always do this for this deck</span>
+    </label>
+  </div>
+</div>
+
+<!-- Flitwing: lock configuration popup (hold the tile in the MODS drawer) -->
+<div class="modal-backdrop above-settings" id="flitwingLockBackdrop" data-modal="flitwingLockBackdrop">
+  <div class="modal-box flitwing-box">
+    <div class="modal-title">Flitwing Lock</div>
+    <div class="modal-sub">Choose what happens every time, or ask each time</div>
+    <div class="flitwing-lock-options" id="flitwingLockOptions"></div>
+    <button class="modal-btn accent" style="width:100%;" onclick="closeModal('flitwingLockBackdrop')">DONE</button>
+  </div>
+</div>
+
 
 <script>
 // ── Full known libraries (append-only as new cards get added) ──────
@@ -734,6 +830,31 @@ var TOKEN_LIBRARY = {
   mutagen:  { label:'Mutagen',  c:'#b87ee8', img:'img/mutagen-token.jpg'  },
   map:      { label:'Map',      c:'#e8c84b', img:'img/map-token.jpg'      },
 };
+// All 5 tracked types are artifacts (established earlier); none are creatures.
+
+// "Phantom" tokens: creature/artifact types some mods create that the app
+// doesn't track by name on the board (Squirrel, Frog, Soldier, Thopter).
+// They still flow through the pipeline with real flags so other predicate
+// mods (Allenal, Ojer Taq, Stridehangar) can react to them — they just get
+// silently discarded at the final apply-to-state step, same as Generic.
+var PHANTOM_TOKENS = {
+  squirrel: { label:'Squirrel', isArtifact:false, isCreature:true },
+  frog:     { label:'Frog',     isArtifact:false, isCreature:true },
+  soldier:  { label:'Soldier',  isArtifact:false, isCreature:true },
+  thopter:  { label:'Thopter',  isArtifact:true,  isCreature:true },
+};
+
+// Looks up the correct isArtifact/isCreature flags for a token type.
+function getTokenFlags(type) {
+  if (TOKEN_LIBRARY[type]) return { isArtifact:true, isCreature:false };
+  if (PHANTOM_TOKENS[type]) return { isArtifact:PHANTOM_TOKENS[type].isArtifact, isCreature:PHANTOM_TOKENS[type].isCreature };
+  return { isArtifact:false, isCreature:false }; // generic, unflagged
+}
+function getTokenDisplayLabel(type) {
+  if (TOKEN_LIBRARY[type]) return TOKEN_LIBRARY[type].label;
+  if (PHANTOM_TOKENS[type]) return PHANTOM_TOKENS[type].label;
+  return 'Token';
+}
 
 // Returns token IDs sorted in TOKEN_LIBRARY's canonical display order
 function canonicalTokenOrder(ids) {
@@ -760,18 +881,36 @@ var MOD_LIBRARY = [
   { id:'pilfered',    name:'Case of the Pilfered Proof',   mc:'#60b4e8', img:'img/case-of-the-pilfered-proof.jpg',    mechanic:'addToken', addsTokenType:'clue' },
   { id:'donatello',   name:'Donatello',                     mc:'#b87ee8', img:'img/donatello-the-brains.jpg',          mechanic:'addToken', addsTokenType:'mutagen' },
   { id:'peregrin',    name:'Peregrin Took',                mc:'#7ecb6f', img:'img/peregrin-took.jpg',                 mechanic:'addToken', addsTokenType:'food' },
+  { id:'quina',       name:'Quina, Qu Gourmet',             mc:'#7ecb6f', img:'img/quina-qu-gourmet.jpg',              mechanic:'addToken', addsTokenType:'frog' },
   { id:'tippy',       name:'Tippy-Toe',                     mc:'#7ecb6f', img:'img/tippy-toe.jpg',                     mechanic:'addToken', addsTokenType:'food' },
-
-  // ── Adds a token only when an artifact is created ──
-  { id:'helm',        name:'Worldwalker Helm',             mc:'#e87860', img:'img/worldwalker-helm.jpg',              mechanic:'addArtifactToken', addsTokenType:'map' },
 
   // ── Adds extra only when a specific token type is already being made (alphabetical) ──
   { id:'bilbo',       name:'Bilbo',                         mc:'#7ecb6f', img:'img/bilbo.jpg',                         mechanic:'replaceToken', triggersOnType:'food', addsTokenType:'treasure' },
   { id:'jolene',      name:'Jolene',                        mc:'#4ecba8', img:'img/jolene-the-plunder-queen.jpg',      mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
   { id:'xorn',        name:'Xorn',                          mc:'#4ecba8', img:'img/xorn.jpg',                          mechanic:'addTokenIfPresent', addsTokenType:'treasure', triggerTokenType:'treasure' },
 
+  // ── Predicate-conditional adds: fire if the batch contains any token
+  //    matching a property (artifact / creature), not a specific named type.
+  //    These join a late-stage permutation search (after Manufactor) since
+  //    they can enable each other and want to see the largest batch.
+  { id:'helm',        name:'Worldwalker Helm',             mc:'#e87860', img:'img/worldwalker-helm.jpg',              mechanic:'predicateAdd', conditionPredicate:'isArtifact', addsTokenType:'map' },
+  { id:'stridehangar',name:'Stridehangar Automaton',        mc:'#a0b8c8', img:'img/stridehangar-automaton.jpg',        mechanic:'predicateAdd', conditionPredicate:'isArtifact', addsTokenType:'thopter' },
+  { id:'allenal',     name:'Queen Allenal of Ruadach',       mc:'#7ecb6f', img:'img/queen-allenal-of-ruadach.jpg',      mechanic:'predicateAdd', conditionPredicate:'isCreature', addsTokenType:'soldier' },
+
+  // ── Wildcard replacement: adds one of a fixed token for EVERY token in
+  //    the batch, regardless of type. Also joins the late-stage search,
+  //    since it wants to see the largest possible batch before it fires.
+  { id:'chatterfang', name:'Chatterfang',                   mc:'#e8a05c', img:'img/chatterfang.jpg',                   mechanic:'wildcardReplace', addsTokenType:'squirrel' },
+
+  // ── Predicate multiply: triples ONLY tokens matching a property,
+  //    leaving the rest of the batch untouched. Also joins the late-stage search.
+  { id:'ojertaq',     name:'Ojer Taq',                       mc:'#c86050', img:'img/ojer-taq.jpg',                      mechanic:'predicateMultiply', conditionPredicate:'isCreature', multiplyBy:3 },
+
   // ── Sacrifice trigger ──
   { id:'vending',     name:'Nuke-Cola',                     mc:'#e8b84b', img:'img/nuka-cola-vending-machine.jpg',     mechanic:'vending' },
+
+  // ── May-convert (player choice per event) ──
+  { id:'flitwing',    name:'Flitwing',                      mc:'#60b4e8', img:'img/flitwing-lyev-detective.jpg',       mechanic:'flitwing', addsTokenType:'clue' },
 ];
 
 // ── Generic modal helpers ────────────────────────────────────────
@@ -844,6 +983,18 @@ function persistCurrentBoardToProfile() {
   persistProfileData();
 }
 
+// Flitwing's lock setting: 'ask' (default, prompts every event) | 'off' | 'tokens' | 'clues'
+function getFlitwingLock() {
+  var p = getActiveProfile();
+  return (p && p.flitwingLock) ? p.flitwingLock : 'ask';
+}
+function setFlitwingLock(mode) {
+  var p = getActiveProfile();
+  if (!p) return;
+  p.flitwingLock = mode;
+  persistProfileData();
+}
+
 // ── Repeat-press helpers ──────────────────────────────────────────
 // Each half gets a timer + interval for hold-to-repeat
 var halfTimers  = {};  // type+'_u' or type+'_ta'
@@ -871,21 +1022,41 @@ function stopRepeat(type, sk) {
 }
 
 // ── Creation engine ───────────────────────────────────────────────
-function runCreate(tokens, fromVending) {
-  fromVending = fromVending || false;
+// ── Pure pipeline computation ────────────────────────────────────────
+// flitwingMode: 'off' (ignore Flitwing) | 'tokens' (convert right before
+// Manufactor, maximizing total token count) | 'clues' (convert at the very
+// end, after everything, maximizing Clue count). See the Flitwing analysis:
+// converting immediately before Manufactor never produces fewer tokens than
+// converting later, so 'tokens' mode doesn't need to compare candidates live.
+function computeBatchForMode(tokens, flitwingMode) {
+  flitwingMode = flitwingMode || 'off';
   var tapped = tokens.every(function(t){ return t.tapped; });
-  var batch = tokens.map(function(t){ return { type:t.type, tapped:t.tapped }; });
 
-  // ── addTokenIfPresent (e.g. Bilbo, Jolene, Xorn) ────────────────
+  // Every token in the batch carries isArtifact/isCreature so predicate-based
+  // mods (Helm, Stridehangar, Allenal, Ojer Taq) can react to it, whether it's
+  // one of the 5 tracked types, a phantom creature (Squirrel/Frog/etc), or a
+  // player-flagged Generic token. Explicit flags on the input are respected
+  // (used for Generic's Artifact/Creature toggles); otherwise looked up.
+  function makeToken(type, tok_tapped, explicitFlags) {
+    var flags = explicitFlags || getTokenFlags(type);
+    return { type:type, tapped:tok_tapped, isArtifact:!!flags.isArtifact, isCreature:!!flags.isCreature };
+  }
+
+  var batch = tokens.map(function(t){
+    var hasExplicit = t.hasOwnProperty('isArtifact') || t.hasOwnProperty('isCreature');
+    return makeToken(t.type, t.tapped, hasExplicit ? { isArtifact:t.isArtifact, isCreature:t.isCreature } : null);
+  });
+
+  // ── addTokenIfPresent (Jolene, Xorn) ────────────────────────────
   // These are replacement effects where the player chooses the order they apply.
   // Since you always choose the order that benefits you most, we try every
   // permutation of active mods and pick whichever produces the most tokens.
-  // Each mod runs sequentially so earlier mods in a permutation can add tokens
-  // that later mods in the same permutation then react to (e.g. Bilbo adds a
-  // Treasure, then Jolene sees that Treasure and adds another).
-  // This is applied twice: once pre-Manufactor (for triggers present in the
-  // current batch), and once post-Manufactor (for triggers that only appeared
-  // via Manufactor's expansion). A mod only fires once total.
+  // Applied twice: once pre-Manufactor (triggers already present), once
+  // post-Manufactor (triggers that only appeared via Manufactor's expansion).
+  // Kept as its own system (rather than folded into the late-stage predicate
+  // search below) because Treasure — both their trigger and their output —
+  // IS Manufactor-eligible, so timing relative to Manufactor genuinely matters
+  // for them specifically, unlike the predicate/phantom-token mods.
   function permutations(arr) {
     if (arr.length <= 1) return [arr.slice()];
     var result = [];
@@ -900,7 +1071,7 @@ function runCreate(tokens, fromVending) {
     orderedMods.forEach(function(mod) {
       var n = modOn[mod.id] || 0;
       if (n > 0 && b.some(function(t){ return t.type === mod.triggerTokenType; })) {
-        for (var i = 0; i < n; i++) b.push({ type:mod.addsTokenType, tapped:tapped });
+        for (var i = 0; i < n; i++) b.push(makeToken(mod.addsTokenType, tapped));
       }
     });
     return b;
@@ -930,20 +1101,7 @@ function runCreate(tokens, fromVending) {
   MODS.forEach(function(mod) {
     if (mod.mechanic === 'addToken') {
       var n = modOn[mod.id] || 0;
-      for (var i = 0; i < n; i++) batch.push({ type:mod.addsTokenType, tapped:tapped });
-    }
-  });
-
-  // Step 1b: addArtifactToken — fires if batch contains any non-generic token
-  MODS.forEach(function(mod) {
-    if (mod.mechanic === 'addArtifactToken') {
-      var n = modOn[mod.id] || 0;
-      if (n > 0) {
-        var hasArtifact = batch.some(function(t){ return t.type !== 'generic'; });
-        if (hasArtifact) {
-          for (var i = 0; i < n; i++) batch.push({ type:mod.addsTokenType, tapped:tapped });
-        }
-      }
+      for (var i = 0; i < n; i++) batch.push(makeToken(mod.addsTokenType, tapped));
     }
   });
 
@@ -957,13 +1115,20 @@ function runCreate(tokens, fromVending) {
         var toAdd = [];
         batch.forEach(function(tok) {
           if (tok.type === mod.triggersOnType) {
-            for (var i = 0; i < n; i++) toAdd.push({ type:mod.addsTokenType, tapped:tok.tapped });
+            for (var i = 0; i < n; i++) toAdd.push(makeToken(mod.addsTokenType, tok.tapped));
           }
         });
         batch = batch.concat(toAdd);
       }
     }
   });
+
+  // Flitwing "Optimize for Tokens": convert here, immediately before Manufactor,
+  // so Manufactor-immune types (Mutagen, Map) become Clue-eligible and get
+  // tripled too. Proven to never produce fewer tokens than converting later.
+  if (flitwingMode === 'tokens') {
+    batch = batch.map(function(t){ return makeToken('clue', t.tapped); });
+  }
 
   // Step 2: manufactor — apply N times in sequence (each pass triples Clue/Food/Treasure)
   MODS.forEach(function(mod) {
@@ -973,9 +1138,9 @@ function runCreate(tokens, fromVending) {
         var ex = [];
         batch.forEach(function(tok) {
           if (tok.type==='clue'||tok.type==='food'||tok.type==='treasure') {
-            ex.push({type:'clue',    tapped:tok.tapped});
-            ex.push({type:'food',    tapped:tok.tapped});
-            ex.push({type:'treasure',tapped:tok.tapped});
+            ex.push(makeToken('clue',     tok.tapped));
+            ex.push(makeToken('food',     tok.tapped));
+            ex.push(makeToken('treasure', tok.tapped));
           } else { ex.push(tok); }
         });
         batch = ex;
@@ -991,6 +1156,60 @@ function runCreate(tokens, fromVending) {
   });
   batch = bestPermutation(batch, postCandidates, tapped);
 
+  // ── Late-stage predicate search (Helm, Stridehangar, Allenal, Chatterfang,
+  // Ojer Taq) ──────────────────────────────────────────────────────
+  // None of these deal in Manufactor-eligible types (Clue/Food/Treasure), so
+  // there's no benefit to running them earlier — they only ever gain value
+  // from seeing a LARGER batch, so they run here, after Manufactor and after
+  // Jolene/Xorn have had their say, when the batch is as big as it'll get pre-
+  // doublers. They CAN enable each other (e.g. Chatterfang's Squirrel can
+  // satisfy Allenal's creature-condition), so — same principle as above — we
+  // try every firing order and keep whichever produces the most tokens.
+  function applyLateStagePermutation(startBatch, orderedMods, tapped) {
+    var b = startBatch.slice();
+    orderedMods.forEach(function(mod) {
+      var n = modOn[mod.id] || 0;
+      if (n <= 0) return;
+      if (mod.mechanic === 'predicateAdd') {
+        if (b.some(function(t){ return t[mod.conditionPredicate]; })) {
+          for (var i = 0; i < n; i++) b.push(makeToken(mod.addsTokenType, tapped));
+        }
+      } else if (mod.mechanic === 'wildcardReplace') {
+        var toAdd = [];
+        b.forEach(function(tok) {
+          for (var i = 0; i < n; i++) toAdd.push(makeToken(mod.addsTokenType, tok.tapped));
+        });
+        b = b.concat(toAdd);
+      } else if (mod.mechanic === 'predicateMultiply') {
+        var factor = Math.pow(mod.multiplyBy || 1, n); // n copies stack multiplicatively, same as doublers
+        var ex = [];
+        b.forEach(function(tok) {
+          if (tok[mod.conditionPredicate]) {
+            for (var i = 0; i < factor; i++) ex.push(makeToken(tok.type, tok.tapped));
+          } else {
+            ex.push(tok);
+          }
+        });
+        b = ex;
+      }
+    });
+    return b;
+  }
+  function bestLateStagePermutation(startBatch, candidateMods, tapped) {
+    if (candidateMods.length === 0) return startBatch;
+    var best = startBatch;
+    permutations(candidateMods).forEach(function(perm) {
+      var result = applyLateStagePermutation(startBatch, perm, tapped);
+      if (result.length > best.length) best = result;
+    });
+    return best;
+  }
+  var lateStageMods = MODS.filter(function(m){
+    return (m.mechanic === 'predicateAdd' || m.mechanic === 'wildcardReplace' || m.mechanic === 'predicateMultiply')
+      && (modOn[m.id] || 0) > 0;
+  });
+  batch = bestLateStagePermutation(batch, lateStageMods, tapped);
+
   // Step 3: double — every enabled doubler (any quantity) multiplies the batch by 2^n
   var mul = 1;
   MODS.forEach(function(mod) {
@@ -1002,17 +1221,163 @@ function runCreate(tokens, fromVending) {
   if (mul > 1) {
     var copies = [];
     for (var i2 = 1; i2 < mul; i2++)
-      batch.forEach(function(tok){ copies.push({type:tok.type,tapped:tok.tapped}); });
+      batch.forEach(function(tok){ copies.push(makeToken(tok.type, tok.tapped)); });
     batch = batch.concat(copies);
+  }
+
+  // Flitwing "Optimize for Clues": convert dead last, after everything else,
+  // so the entire final (largest possible) batch becomes Clues.
+  if (flitwingMode === 'clues') {
+    batch = batch.map(function(t){ return makeToken('clue', t.tapped); });
   }
 
   // Step 4: vending — handled in doAction (triggered by sacrifice, not creation)
 
+  return batch;
+}
+
+function applyBatchToState(batch) {
   batch.forEach(function(tok){
     if (tok.type !== 'generic' && state[tok.type]) {
       state[tok.type][tok.tapped?'ta':'u']++;
     }
   });
+}
+
+// Direct/synchronous creation with an explicit, already-known Flitwing mode.
+// Used once we know what mode applies (Flitwing inactive, or locked).
+function runCreate(tokens, flitwingMode) {
+  var batch = computeBatchForMode(tokens, flitwingMode || 'off');
+  applyBatchToState(batch);
+}
+
+// Tallies a batch into per-token-type counts, in TT's canonical order —
+// used to build the Flitwing choice preview.
+function tallyBatch(batch) {
+  var counts = {};
+  TT.forEach(function(t){ counts[t] = 0; });
+  batch.forEach(function(tok){
+    if (tok.type !== 'generic' && counts.hasOwnProperty(tok.type)) counts[tok.type]++;
+  });
+  return counts;
+}
+
+// ── Flitwing dispatch: the entry point everything else should call ─────
+// Decides whether Flitwing needs to ask the player (opens a popup) or can
+// proceed immediately (Flitwing inactive, or a choice is locked), then calls
+// onDone() once the batch has been applied to state. Multiple calls queue
+// and resolve one at a time, so e.g. 2x Nuke-Cola (two separate creation
+// events) doesn't try to show two popups at once.
+var flitwingQueue = [];
+var flitwingBusy = false;
+var pendingFlitwingJob = null;
+
+function getFlitwingMod() {
+  return MODS.find ? MODS.find(function(m){ return m.mechanic === 'flitwing'; })
+                    : MODS.filter(function(m){ return m.mechanic === 'flitwing'; })[0];
+}
+
+function createTokens(tokens, onDone) {
+  flitwingQueue.push({ tokens: tokens, onDone: onDone || function(){} });
+  processFlitwingQueue();
+}
+
+function processFlitwingQueue() {
+  if (flitwingBusy || flitwingQueue.length === 0) return;
+  var job = flitwingQueue.shift();
+  var flitwingMod = getFlitwingMod();
+  var active = flitwingMod && (modOn[flitwingMod.id] || 0) > 0;
+
+  if (!active) {
+    runCreate(job.tokens, 'off');
+    job.onDone();
+    processFlitwingQueue();
+    return;
+  }
+
+  var lock = getFlitwingLock();
+  if (lock !== 'ask') {
+    runCreate(job.tokens, lock);
+    job.onDone();
+    processFlitwingQueue();
+    return;
+  }
+
+  flitwingBusy = true;
+  pendingFlitwingJob = job;
+  openFlitwingChoicePopup(job.tokens);
+}
+
+function resolveFlitwingChoice(mode, lockIt) {
+  var job = pendingFlitwingJob;
+  if (!job) return;
+  pendingFlitwingJob = null;
+  if (lockIt) setFlitwingLock(mode);
+  runCreate(job.tokens, mode);
+  closeModal('flitwingChoiceBackdrop');
+  flitwingBusy = false;
+  job.onDone();
+  processFlitwingQueue();
+}
+
+// Renders the per-event choice popup: for each of the 3 modes, shows a full
+// per-token-type breakdown of what that choice would actually create.
+var FLITWING_MODE_LABELS = {
+  off:    "Don't Apply",
+  tokens: 'Optimize for Tokens',
+  clues:  'Optimize for Clues'
+};
+function openFlitwingChoicePopup(tokens) {
+  var box = document.getElementById('flitwingOptions');
+  box.innerHTML = '';
+  ['off','tokens','clues'].forEach(function(mode){
+    var batch = computeBatchForMode(tokens, mode);
+    var counts = tallyBatch(batch);
+    var row = document.createElement('div');
+    row.className = 'flitwing-option';
+    var breakdownHtml = '';
+    TT.forEach(function(t){
+      if (counts[t] > 0) {
+        breakdownHtml += '<span class="flitwing-chip">' + TOKEN_LIBRARY[t].label + ' +' + counts[t] + '</span>';
+      }
+    });
+    row.innerHTML =
+      '<div class="flitwing-option-label">' + FLITWING_MODE_LABELS[mode] + '</div>' +
+      '<div class="flitwing-option-breakdown">' + breakdownHtml + '</div>';
+    row.onclick = function() {
+      var lockIt = document.getElementById('flitwingLockCheckbox').checked;
+      resolveFlitwingChoice(mode, lockIt);
+    };
+    box.appendChild(row);
+  });
+  document.getElementById('flitwingLockCheckbox').checked = false;
+  openModal('flitwingChoiceBackdrop');
+}
+
+// Renders the lock-configuration popup (opened by holding the Flitwing tile
+// in the in-game MODS drawer). Lets the player permanently pin a choice for
+// this deck, or set it back to "ask every time".
+var FLITWING_LOCK_LABELS = {
+  ask:    'Ask every time',
+  off:    "Always: Don't Apply",
+  tokens: 'Always: Optimize Tokens',
+  clues:  'Always: Optimize Clues'
+};
+function openFlitwingLockPopup() {
+  var box = document.getElementById('flitwingLockOptions');
+  box.innerHTML = '';
+  var current = getFlitwingLock();
+  ['ask','off','tokens','clues'].forEach(function(mode){
+    var btn = document.createElement('div');
+    btn.className = 'flitwing-lock-option' + (mode === current ? ' active' : '');
+    btn.textContent = FLITWING_LOCK_LABELS[mode];
+    btn.onclick = function() {
+      setFlitwingLock(mode);
+      openFlitwingLockPopup(); // re-render to show the new active state
+    };
+    box.appendChild(btn);
+  });
+  openModal('flitwingLockBackdrop');
 }
 
 function snapshot() { return TT.map(function(t){ return state[t].u+state[t].ta; }); }
@@ -1098,24 +1463,39 @@ function showDeltaBadges(deltas) {
 function doAction(type, sk, delta, doFlash) {
   var before = beginAction();
   if (delta > 0) {
-    runCreate([{ type:type, tapped:(sk==='ta') }]);
+    createTokens([{ type:type, tapped:(sk==='ta') }], function(){
+      endAction(before);
+      render();
+    });
   } else {
     if (state[type][sk] > 0) {
       state[type][sk]--;
       if (type === 'food') {
+        var totalVending = 0;
         MODS.forEach(function(mod) {
-          if (mod.mechanic === 'vending') {
-            var n = modOn[mod.id] || 0;
-            for (var v = 0; v < n; v++) {
-              runCreate([{ type:'treasure', tapped:true }], true);
-            }
-          }
+          if (mod.mechanic === 'vending') totalVending += (modOn[mod.id] || 0);
         });
+        if (totalVending === 0) {
+          endAction(before);
+          render();
+        } else {
+          var completed = 0;
+          for (var v = 0; v < totalVending; v++) {
+            createTokens([{ type:'treasure', tapped:true }], function(){
+              completed++;
+              if (completed === totalVending) { endAction(before); render(); }
+            });
+          }
+        }
+      } else {
+        endAction(before);
+        render();
       }
+    } else {
+      endAction(before);
+      render();
     }
   }
-  endAction(before);
-  render();
 }
 
 function tapTokens(type) {
@@ -1148,15 +1528,43 @@ function rebuildCreateDropdown() {
   sel.value = stillValid ? prevVal : 'generic';
 }
 
+// ── Generic token Artifact/Creature flags ───────────────────────────
+var genericFlags = { artifact:false, creature:false };
+function toggleGenericFlag(kind) {
+  genericFlags[kind] = !genericFlags[kind];
+  document.getElementById('genericArtifactChip').classList.toggle('on', genericFlags.artifact);
+  document.getElementById('genericCreatureChip').classList.toggle('on', genericFlags.creature);
+}
+// Only show the toggle row when Generic is selected AND this deck actually
+// has a predicate-based mod enabled (Helm/Stridehangar/Allenal/Chatterfang/
+// Ojer Taq) — otherwise the flags would have nothing to matter to, so keep
+// the UI clean and hide them.
+function updateGenericFlagsVisibility() {
+  var type = document.getElementById('createType').value;
+  var hasPredicateMod = MODS.some(function(m){
+    return m.mechanic === 'predicateAdd' || m.mechanic === 'wildcardReplace' || m.mechanic === 'predicateMultiply';
+  });
+  var row = document.getElementById('genericFlagsRow');
+  row.classList.toggle('show', type === 'generic' && hasPredicateMod);
+}
+
 function bulkCreate() {
   var type = document.getElementById('createType').value;
   var amt  = Math.max(1, parseInt(document.getElementById('createAmt').value) || 1);
   var tokens = [];
-  for (var i = 0; i < amt; i++) tokens.push({ type:type, tapped:false });
+  for (var i = 0; i < amt; i++) {
+    var tok = { type:type, tapped:false };
+    if (type === 'generic') {
+      tok.isArtifact = genericFlags.artifact;
+      tok.isCreature = genericFlags.creature;
+    }
+    tokens.push(tok);
+  }
   var before = beginAction();
-  runCreate(tokens);
-  endAction(before);
-  render();
+  createTokens(tokens, function(){
+    endAction(before);
+    render();
+  });
 }
 
 function resetAll() {
@@ -1363,12 +1771,21 @@ function renderMods() {
     var tile = document.createElement('div');
     tile.className = 'mod-tile' + (on ? ' on' : '');
     tile.style.setProperty('--mc', mod.mc);
+    var badgeHtml = '';
+    if (mod.mechanic === 'flitwing') {
+      var lock = getFlitwingLock();
+      if (lock !== 'ask') {
+        badgeHtml = '<div class="mod-qty-badge">🔒</div>';
+      }
+    } else if (qty > 1) {
+      badgeHtml = '<div class="mod-qty-badge">×' + qty + '</div>';
+    }
     tile.innerHTML =
       '<div class="mod-art-wrap">' +
         '<img class="mod-art" src="' + resolveArtPath(mod.img, mod.id) + '" alt="' + mod.name + '" onerror="this.style.background=\'#1e2330\'">' +
         '<div class="mod-art-label">' + mod.name + '</div>' +
       '</div>' +
-      (qty > 1 ? '<div class="mod-qty-badge">×' + qty + '</div>' : '');
+      badgeHtml;
 
     // tap = toggle on/off, hold = open qty picker
     var holdTimer = null;
@@ -1382,7 +1799,11 @@ function renderMods() {
         holdTimer = setTimeout(function() {
           holdFired = true;
           if (modOn[m.id] === 0) modOn[m.id] = 1;
-          openQty(m);
+          if (m.mechanic === 'flitwing') {
+            openFlitwingLockPopup();
+          } else {
+            openQty(m);
+          }
           renderMods(); render();
         }, 500);
       });
@@ -1589,11 +2010,14 @@ function renderSettingsMods() {
     var tl = TOKEN_LIBRARY;
     var tagText = 'tokens → 2× tokens';
     if (mod.mechanic === 'manufactor') tagText = 'clue, food, & treasure → clue, food, & treasure × 3';
-    if (mod.mechanic === 'addToken')         tagText = 'tokens → tokens + ' + tl[mod.addsTokenType].label.toLowerCase();
-    if (mod.mechanic === 'addArtifactToken') tagText = 'artifact tokens → artifact tokens + ' + tl[mod.addsTokenType].label.toLowerCase();
-    if (mod.mechanic === 'addTokenIfPresent') tagText = tl[mod.triggerTokenType].label.toLowerCase() + 's → ' + tl[mod.triggerTokenType].label.toLowerCase() + 's + 1';
-    if (mod.mechanic === 'replaceToken')     tagText = tl[mod.triggersOnType].label.toLowerCase() + ' → ' + tl[mod.triggersOnType].label.toLowerCase() + ' + ' + tl[mod.addsTokenType].label.toLowerCase();
-    if (mod.mechanic === 'vending')          tagText = 'sac a food: tapped treasure';
+    if (mod.mechanic === 'addToken')          tagText = 'tokens → tokens + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
+    if (mod.mechanic === 'addTokenIfPresent')  tagText = tl[mod.triggerTokenType].label.toLowerCase() + 's → ' + tl[mod.triggerTokenType].label.toLowerCase() + 's + 1';
+    if (mod.mechanic === 'replaceToken')      tagText = tl[mod.triggersOnType].label.toLowerCase() + ' → ' + tl[mod.triggersOnType].label.toLowerCase() + ' + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
+    if (mod.mechanic === 'vending')           tagText = 'sac a food: tapped treasure';
+    if (mod.mechanic === 'flitwing')          tagText = 'tokens → may become all clues';
+    if (mod.mechanic === 'predicateAdd')      tagText = (mod.conditionPredicate === 'isArtifact' ? 'artifact' : 'creature') + ' tokens → also + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
+    if (mod.mechanic === 'wildcardReplace')   tagText = 'X tokens → X tokens + X ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase() + 's';
+    if (mod.mechanic === 'predicateMultiply') tagText = 'creature tokens → creature tokens × ' + mod.multiplyBy;
 
     var thumbImg = document.createElement('img');
     thumbImg.className = 'settings-mod-thumb';
@@ -1663,6 +2087,7 @@ function saveSettings() {
 
   persistCurrentBoardToProfile();
   rebuildCreateDropdown();
+  updateGenericFlagsVisibility();
   buildGrid();
   renderMods();
   render();
@@ -1703,6 +2128,7 @@ function confirmProfileName() {
       name: name,
       activeTokens: pendingTokens.length ? pendingTokens.slice() : Object.keys(TOKEN_LIBRARY).slice(0,4),
       enabledMods: [],
+      flitwingLock: 'ask',
       artVariants: {}
     };
     profiles.push(newProfile);
@@ -1790,6 +2216,7 @@ function loadActiveProfileIntoApp() {
   }
 
   rebuildCreateDropdown();
+  updateGenericFlagsVisibility();
   buildGrid();
   renderMods();
   render();
@@ -1806,6 +2233,7 @@ function createFirstProfile() {
     name: name,
     activeTokens: ['clue','food','treasure','mutagen'],
     enabledMods: [],
+    flitwingLock: 'ask',
     artVariants: {}
   };
   profiles.push(newProfile);
@@ -1820,6 +2248,7 @@ if (!getActiveProfile()) {
 }
 
 buildGrid(); renderMods(); render(); rebuildCreateDropdown();
+  updateGenericFlagsVisibility();
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
