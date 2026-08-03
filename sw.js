@@ -1,4 +1,4 @@
-const CACHE = 'manufactor-v1.11';
+const CACHE = 'manufactor-v1.12';
 const FILES = [
   '/manufactor/',
   '/manufactor/index.html',
@@ -51,6 +51,11 @@ const FILES = [
   '/manufactor/img/bilbo.jpg',
   '/manufactor/img/bard-king-of-dale.jpg',
   '/manufactor/img/flitwing-lyev-detective.jpg',
+  '/manufactor/img/stridehangar-automaton.jpg',
+  '/manufactor/img/queen-allenal-of-ruadach.jpg',
+  '/manufactor/img/chatterfang.jpg',
+  '/manufactor/img/ojer-taq.jpg',
+  '/manufactor/img/quina-qu-gourmet.jpg',
   '/manufactor/img/icon-512.png',
   'https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;400;700&display=swap'
 ];
