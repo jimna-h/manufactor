@@ -393,6 +393,10 @@ body{
   background:rgba(96,180,232,0.15);color:#60b4e8;
   border:1px solid rgba(96,180,232,0.3);
 }
+.flitwing-chip.untracked{
+  background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);
+  border:1px dashed rgba(255,255,255,0.2);
+}
 .flitwing-option-breakdown:empty::after{
   content:'nothing created';
   font-size:0.6rem;color:rgba(255,255,255,0.25);font-style:italic;
@@ -1028,7 +1032,14 @@ function stopRepeat(type, sk) {
 // end, after everything, maximizing Clue count). See the Flitwing analysis:
 // converting immediately before Manufactor never produces fewer tokens than
 // converting later, so 'tokens' mode doesn't need to compare candidates live.
-function computeBatchForMode(tokens, flitwingMode) {
+// Computes the batch for one deterministic Flitwing conversion POSITION:
+// 'off' (never converts), 'manufactor' (converts immediately before
+// Manufactor — maximizes what Manufactor has to work with), or 'clues'
+// (converts dead last, after everything — maximizes Clue count specifically).
+// computeBatchForMode (below) is the public entry point; 'tokens' mode calls
+// this twice and picks the winner, since neither fixed position is always
+// the true maximum anymore (see the comment above the 'tokens' dispatch).
+function computeBatchForPosition(tokens, flitwingMode) {
   flitwingMode = flitwingMode || 'off';
   var tapped = tokens.every(function(t){ return t.tapped; });
 
@@ -1123,10 +1134,16 @@ function computeBatchForMode(tokens, flitwingMode) {
     }
   });
 
-  // Flitwing "Optimize for Tokens": convert here, immediately before Manufactor,
-  // so Manufactor-immune types (Mutagen, Map) become Clue-eligible and get
-  // tripled too. Proven to never produce fewer tokens than converting later.
-  if (flitwingMode === 'tokens') {
+  // Flitwing "Optimize for Manufactor" position: convert here, immediately
+  // before Manufactor, so Manufactor-immune types (Mutagen, Map, and any
+  // creature-flagged phantom token) become Clue-eligible and get tripled too.
+  // NOTE: this is no longer provably the global maximum on its own — it can
+  // lose to the 'clues' position when a creature-predicate mod (Allenal,
+  // Ojer Taq, Chatterfang) would have produced more value from an
+  // untouched creature flag than Manufactor's triple does. That's exactly
+  // why 'tokens' mode (below) compares both positions instead of assuming
+  // this one always wins.
+  if (flitwingMode === 'manufactor') {
     batch = batch.map(function(t){ return makeToken('clue', t.tapped); });
   }
 
@@ -1236,6 +1253,21 @@ function computeBatchForMode(tokens, flitwingMode) {
   return batch;
 }
 
+// Public entry point. 'off' | 'manufactor' | 'clues' delegate straight to a
+// single deterministic position. 'tokens' computes BOTH candidate positions
+// (feed Manufactor, vs. wait for the late-stage predicate mods) and returns
+// whichever produces more total tokens — this is the true maximum, and isn't
+// reducible to a single fixed position now that predicate mods exist.
+function computeBatchForMode(tokens, flitwingMode) {
+  flitwingMode = flitwingMode || 'off';
+  if (flitwingMode !== 'tokens') {
+    return computeBatchForPosition(tokens, flitwingMode);
+  }
+  var viaManufactor = computeBatchForPosition(tokens, 'manufactor');
+  var viaClues      = computeBatchForPosition(tokens, 'clues');
+  return viaManufactor.length >= viaClues.length ? viaManufactor : viaClues;
+}
+
 function applyBatchToState(batch) {
   batch.forEach(function(tok){
     if (tok.type !== 'generic' && state[tok.type]) {
@@ -1258,6 +1290,19 @@ function tallyBatch(batch) {
   TT.forEach(function(t){ counts[t] = 0; });
   batch.forEach(function(tok){
     if (tok.type !== 'generic' && counts.hasOwnProperty(tok.type)) counts[tok.type]++;
+  });
+  return counts;
+}
+
+// Tallies EVERY token type in a batch, including untracked ones (phantom
+// creature tokens like Squirrel/Frog/Soldier/Thopter, and plain 'generic').
+// Used so the Flitwing preview's total actually adds up to something visible,
+// instead of leaving untracked tokens as an unexplained gap between the
+// shown chips and the total count.
+function tallyBatchAll(batch) {
+  var counts = {};
+  batch.forEach(function(tok){
+    counts[tok.type] = (counts[tok.type] || 0) + 1;
   });
   return counts;
 }
@@ -1320,29 +1365,40 @@ function resolveFlitwingChoice(mode, lockIt) {
   processFlitwingQueue();
 }
 
-// Renders the per-event choice popup: for each of the 3 modes, shows a full
-// per-token-type breakdown of what that choice would actually create.
+// Renders the per-event choice popup: for each of the 4 modes, shows the
+// total token count and a full per-token-type breakdown of what that choice
+// would actually create.
 var FLITWING_MODE_LABELS = {
-  off:    "Don't Apply",
-  tokens: 'Optimize for Tokens',
-  clues:  'Optimize for Clues'
+  off:        "Don't Apply",
+  manufactor: 'Optimize for Manufactor',
+  tokens:     'Optimize for Tokens',
+  clues:      'Optimize for Clues'
 };
 function openFlitwingChoicePopup(tokens) {
   var box = document.getElementById('flitwingOptions');
   box.innerHTML = '';
-  ['off','tokens','clues'].forEach(function(mode){
+  ['off','manufactor','tokens','clues'].forEach(function(mode){
     var batch = computeBatchForMode(tokens, mode);
-    var counts = tallyBatch(batch);
+    var allCounts = tallyBatchAll(batch);
     var row = document.createElement('div');
     row.className = 'flitwing-option';
     var breakdownHtml = '';
+    // Tracked types first, in canonical order
     TT.forEach(function(t){
-      if (counts[t] > 0) {
-        breakdownHtml += '<span class="flitwing-chip">' + TOKEN_LIBRARY[t].label + ' +' + counts[t] + '</span>';
+      if (allCounts[t] > 0) {
+        breakdownHtml += '<span class="flitwing-chip">' + TOKEN_LIBRARY[t].label + ' +' + allCounts[t] + '</span>';
       }
     });
+    // Then anything untracked (phantom creature tokens, plain generic) —
+    // dimmed/muted styling to signal these won't show up as a board counter,
+    // so the total on the label always fully accounts for itself.
+    Object.keys(allCounts).forEach(function(type){
+      if (TT.indexOf(type) !== -1 || allCounts[type] <= 0) return; // already shown above
+      var label = type === 'generic' ? 'Untracked' : getTokenDisplayLabel(type);
+      breakdownHtml += '<span class="flitwing-chip untracked">' + label + ' +' + allCounts[type] + '</span>';
+    });
     row.innerHTML =
-      '<div class="flitwing-option-label">' + FLITWING_MODE_LABELS[mode] + '</div>' +
+      '<div class="flitwing-option-label">' + FLITWING_MODE_LABELS[mode] + ': ' + batch.length + '</div>' +
       '<div class="flitwing-option-breakdown">' + breakdownHtml + '</div>';
     row.onclick = function() {
       var lockIt = document.getElementById('flitwingLockCheckbox').checked;
@@ -1358,16 +1414,17 @@ function openFlitwingChoicePopup(tokens) {
 // in the in-game MODS drawer). Lets the player permanently pin a choice for
 // this deck, or set it back to "ask every time".
 var FLITWING_LOCK_LABELS = {
-  ask:    'Ask every time',
-  off:    "Always: Don't Apply",
-  tokens: 'Always: Optimize Tokens',
-  clues:  'Always: Optimize Clues'
+  ask:        'Ask every time',
+  off:        "Always: Don't Apply",
+  manufactor: 'Always: Optimize Manufactor',
+  tokens:     'Always: Optimize Tokens',
+  clues:      'Always: Optimize Clues'
 };
 function openFlitwingLockPopup() {
   var box = document.getElementById('flitwingLockOptions');
   box.innerHTML = '';
   var current = getFlitwingLock();
-  ['ask','off','tokens','clues'].forEach(function(mode){
+  ['ask','off','manufactor','tokens','clues'].forEach(function(mode){
     var btn = document.createElement('div');
     btn.className = 'flitwing-lock-option' + (mode === current ? ' active' : '');
     btn.textContent = FLITWING_LOCK_LABELS[mode];
