@@ -397,6 +397,32 @@ body{
   background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);
   border:1px dashed rgba(255,255,255,0.2);
 }
+
+/* ── LAST BATCH TOAST ──
+   Transient overlay showing everything the most recent action created,
+   including untracked/phantom tokens. position:fixed = zero layout cost;
+   fades in/out on its own, never blocks taps underneath it. */
+.last-batch-toast{
+  position:fixed;left:50%;bottom:14px;
+  transform:translateX(-50%) translateY(6px);
+  z-index:40;pointer-events:none;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:4px;
+  max-width:92vw;padding:6px 10px;border-radius:10px;
+  background:rgba(10,12,16,0.85);border:1px solid rgba(255,255,255,0.1);
+  opacity:0;transition:opacity 0.25s,transform 0.25s;
+}
+.last-batch-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast-chip{
+  font-family:'Oswald',sans-serif;font-size:0.6rem;
+  padding:2px 7px;border-radius:5px;
+  background:rgba(96,180,232,0.15);color:#60b4e8;
+  border:1px solid rgba(96,180,232,0.3);
+}
+.toast-chip.untracked{
+  background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.4);
+  border:1px dashed rgba(255,255,255,0.2);
+}
+
 .flitwing-option-breakdown:empty::after{
   content:'nothing created';
   font-size:0.6rem;color:rgba(255,255,255,0.25);font-style:italic;
@@ -695,6 +721,8 @@ body{
 </div>
 
 <div class="grid" id="tokenGrid"></div>
+
+<div class="last-batch-toast" id="lastBatchToast"></div>
 
 <div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
@@ -1281,6 +1309,7 @@ function applyBatchToState(batch) {
 function runCreate(tokens, flitwingMode) {
   var batch = computeBatchForMode(tokens, flitwingMode || 'off');
   applyBatchToState(batch);
+  batchAccumulator = batchAccumulator.concat(batch);
 }
 
 // Tallies a batch into per-token-type counts, in TT's canonical order —
@@ -1307,6 +1336,33 @@ function tallyBatchAll(batch) {
   return counts;
 }
 
+// Transient "what did that action just make" toast — same idea as the
+// Flitwing preview's breakdown, but for every creation, not just Flitwing
+// choices. Purely an overlay (position:fixed), so it costs no layout space
+// and disappears on its own; unobtrusive by design.
+var lastBatchToastTimer = null;
+function showLastBatchToast(batch) {
+  var counts = tallyBatchAll(batch);
+  var chipsHtml = '';
+  TT.forEach(function(t){
+    if (counts[t] > 0) {
+      chipsHtml += '<span class="toast-chip">' + TOKEN_LIBRARY[t].label + ' +' + counts[t] + '</span>';
+      delete counts[t];
+    }
+  });
+  Object.keys(counts).forEach(function(type){
+    if (counts[type] <= 0) return;
+    var label = type === 'generic' ? 'Untracked' : getTokenDisplayLabel(type);
+    chipsHtml += '<span class="toast-chip untracked">' + label + ' +' + counts[type] + '</span>';
+  });
+  if (!chipsHtml) return;
+  var el = document.getElementById('lastBatchToast');
+  el.innerHTML = chipsHtml;
+  el.classList.add('show');
+  if (lastBatchToastTimer) clearTimeout(lastBatchToastTimer);
+  lastBatchToastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1800);
+}
+
 // ── Flitwing dispatch: the entry point everything else should call ─────
 // Decides whether Flitwing needs to ask the player (opens a popup) or can
 // proceed immediately (Flitwing inactive, or a choice is locked), then calls
@@ -1316,6 +1372,7 @@ function tallyBatchAll(batch) {
 var flitwingQueue = [];
 var flitwingBusy = false;
 var pendingFlitwingJob = null;
+var flitwingPopupOpenedAt = 0;
 
 function getFlitwingMod() {
   return MODS.find ? MODS.find(function(m){ return m.mechanic === 'flitwing'; })
@@ -1377,6 +1434,14 @@ var FLITWING_MODE_LABELS = {
 function openFlitwingChoicePopup(tokens) {
   var box = document.getElementById('flitwingOptions');
   box.innerHTML = '';
+  // Mobile ghost-click guard: the tap that triggered this popup can produce a
+  // trailing synthetic 'click' event (browsers fire touchstart→touchend→click
+  // for touch devices) that lands AFTER this popup has already rendered new
+  // buttons at those same coordinates — accidentally "clicking through" onto
+  // whichever option happens to sit where the finger was. Ignoring clicks for
+  // a brief window after opening lets that trailing click resolve harmlessly
+  // before any option becomes interactive.
+  flitwingPopupOpenedAt = Date.now();
   ['off','manufactor','tokens','clues'].forEach(function(mode){
     var batch = computeBatchForMode(tokens, mode);
     var allCounts = tallyBatchAll(batch);
@@ -1401,6 +1466,7 @@ function openFlitwingChoicePopup(tokens) {
       '<div class="flitwing-option-label">' + FLITWING_MODE_LABELS[mode] + ': ' + batch.length + '</div>' +
       '<div class="flitwing-option-breakdown">' + breakdownHtml + '</div>';
     row.onclick = function() {
+      if (Date.now() - flitwingPopupOpenedAt < 350) return; // swallow the ghost click
       var lockIt = document.getElementById('flitwingLockCheckbox').checked;
       resolveFlitwingChoice(mode, lockIt);
     };
@@ -1451,7 +1517,11 @@ function cloneState() {
   TT.forEach(function(t){ c[t] = { u: state[t].u, ta: state[t].ta }; });
   return c;
 }
-function beginAction() { return cloneState(); }
+var batchAccumulator = []; // raw tokens created during the current action, incl. untracked ones
+function beginAction() {
+  batchAccumulator = [];
+  return cloneState();
+}
 function endAction(before) {
   var after = cloneState();
   var deltas = {};
@@ -1465,6 +1535,9 @@ function endAction(before) {
     actionHistory.push(deltas);
     if (actionHistory.length > MAX_HISTORY) actionHistory.shift();
     showDeltaBadges(deltas);
+  }
+  if (batchAccumulator.length > 0) {
+    showLastBatchToast(batchAccumulator);
   }
 }
 function undo() {
