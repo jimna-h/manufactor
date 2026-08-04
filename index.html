@@ -572,6 +572,28 @@ body{
 .settings-mod-list{
   display:flex;flex-direction:column;gap:6px;
 }
+
+/* Collapsible "Creature Token Modifiers" section — collapsed by default so
+   these don't clutter the list unless someone specifically wants them. */
+.creature-section-toggle{
+  width:100%;display:flex;align-items:center;gap:6px;
+  background:none;border:none;cursor:pointer;
+  padding:12px 2px 6px;margin:0;
+  font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;
+  color:rgba(255,255,255,0.35);text-transform:uppercase;text-align:left;
+}
+.creature-section-toggle:active{color:rgba(255,255,255,0.55);}
+.creature-toggle-arrow{
+  display:inline-block;font-size:0.6rem;
+  transition:transform 0.2s;color:rgba(255,255,255,0.3);
+}
+.creature-section-toggle.open .creature-toggle-arrow{transform:rotate(90deg);}
+.creature-mod-list{
+  display:none;flex-direction:column;gap:6px;
+  padding-top:4px;
+}
+.creature-mod-list.open{display:flex;}
+
 .settings-mod-row{
   display:flex;align-items:center;gap:10px;
   padding:8px 10px;border-radius:8px;
@@ -775,6 +797,12 @@ body{
 
       <div class="settings-section-label">Available Modifiers</div>
       <div class="settings-mod-list" id="settingsModList"></div>
+
+      <button class="creature-section-toggle" id="creatureSectionToggle" onclick="toggleCreatureSection()">
+        <span class="creature-toggle-arrow">▸</span>
+        <span id="creatureToggleLabel">Creature Token Modifiers</span>
+      </button>
+      <div class="settings-mod-list creature-mod-list" id="creatureModList"></div>
     </div>
     <div class="settings-footer">
       <button class="settings-save" onclick="saveSettings()">SAVE</button>
@@ -1360,7 +1388,7 @@ function showLastBatchToast(batch) {
   el.innerHTML = chipsHtml;
   el.classList.add('show');
   if (lastBatchToastTimer) clearTimeout(lastBatchToastTimer);
-  lastBatchToastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1800);
+  lastBatchToastTimer = setTimeout(function(){ el.classList.remove('show'); }, 2500);
 }
 
 // ── Flitwing dispatch: the entry point everything else should call ─────
@@ -2129,72 +2157,163 @@ function updateTokenPickCount() {
   document.getElementById('tokenPickCount').textContent = '(' + pendingTokens.length + '/4)';
 }
 
+// The 5 "creature token" modifiers live in their own collapsed-by-default
+// section in Settings, since they're a denser/more niche category than the
+// main list and most decks won't use them.
+var CREATURE_MOD_IDS = ['ojertaq','chatterfang','allenal','stridehangar','quina'];
+
+// "a" vs "an" for whatever token/predicate label follows
+function articleFor(word) {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+function multiplierWord(n) {
+  if (n === 2) return 'Doubles';
+  if (n === 3) return 'Triples';
+  if (n === 4) return 'Quadruples';
+  return n + '×';
+}
+
+// Builds the description text for a mod's settings row, in plain language.
+// Every mod sharing a mechanic uses the exact same sentence shape — only the
+// token names change — so scanning the list tells you the CATEGORY of effect
+// at a glance, not just the specific card:
+//   Doublers            "Doubles tokens created"
+//   Ojer Taq             "Triples creature tokens created"
+//   Manufactor            "Each becomes a Clue, Food & Treasure"
+//   Unconditional adds    "Also creates a Clue"
+//   Conditional adds      "If creating a Treasure, also creates a Treasure"
+//   Per-token adds        "Each Food also creates a Treasure"
+//   Nuke-Cola             "Sac a Food: create a tapped Treasure"
+//   Flitwing              "May turn tokens into Clues"
+function buildModTagText(mod) {
+  var tl = TOKEN_LIBRARY;
+
+  if (mod.mechanic === 'double')
+    return multiplierWord(2) + ' tokens created';
+
+  if (mod.mechanic === 'predicateMultiply') {
+    var predLabelMul = mod.conditionPredicate === 'isArtifact' ? 'artifact' : 'creature';
+    return multiplierWord(mod.multiplyBy) + ' ' + predLabelMul + ' tokens created';
+  }
+
+  if (mod.mechanic === 'manufactor')
+    return 'Each becomes a Clue, Food & Treasure';
+
+  if (mod.mechanic === 'addToken') {
+    var addLabel1 = getTokenDisplayLabel(mod.addsTokenType);
+    return 'Also creates ' + articleFor(addLabel1) + ' ' + addLabel1;
+  }
+
+  if (mod.mechanic === 'addTokenIfPresent') {
+    var trigLabel1 = tl[mod.triggerTokenType].label;
+    var addLabel2 = getTokenDisplayLabel(mod.addsTokenType);
+    return 'If creating ' + articleFor(trigLabel1) + ' ' + trigLabel1 + ', also creates ' + articleFor(addLabel2) + ' ' + addLabel2;
+  }
+
+  if (mod.mechanic === 'predicateAdd') {
+    var predLabelAdd = mod.conditionPredicate === 'isArtifact' ? 'artifact' : 'creature';
+    var addLabel3 = getTokenDisplayLabel(mod.addsTokenType);
+    return 'If creating ' + articleFor(predLabelAdd) + ' ' + predLabelAdd + ', also creates ' + articleFor(addLabel3) + ' ' + addLabel3;
+  }
+
+  if (mod.mechanic === 'replaceToken') {
+    var trigLabel2 = tl[mod.triggersOnType].label;
+    var addLabel4 = getTokenDisplayLabel(mod.addsTokenType);
+    return 'Each ' + trigLabel2 + ' also creates ' + articleFor(addLabel4) + ' ' + addLabel4;
+  }
+
+  if (mod.mechanic === 'wildcardReplace') {
+    var addLabel5 = getTokenDisplayLabel(mod.addsTokenType);
+    return 'Each token also creates ' + articleFor(addLabel5) + ' ' + addLabel5;
+  }
+
+  if (mod.mechanic === 'flitwing')
+    return 'May turn tokens into Clues';
+
+  if (mod.mechanic === 'vending')
+    return 'Sac a Food: create a tapped Treasure';
+
+  return '';
+}
+
+// Builds one mod row (art thumbnail, name, description, toggle, alt-art star)
+// and appends it to the given container. Shared by the main list and the
+// collapsible creature-token list so both stay visually identical.
+function buildModRow(mod, container) {
+  var isOn = pendingMods.indexOf(mod.id) !== -1;
+  var row = document.createElement('div');
+  row.className = 'settings-mod-row' + (isOn ? ' on' : '');
+  row.style.setProperty('--mc', mod.mc);
+
+  var thumbImg = document.createElement('img');
+  thumbImg.className = 'settings-mod-thumb';
+  thumbImg.alt = '';
+  thumbImg.onerror = function(){ thumbImg.style.background = '#1e2330'; };
+  thumbImg.src = resolveArtPath(mod.img, mod.id);
+
+  var infoDiv = document.createElement('div');
+  infoDiv.className = 'settings-mod-info';
+  infoDiv.innerHTML =
+    '<div class="settings-mod-name">' + mod.name + '</div>' +
+    '<div class="settings-mod-tag">' + buildModTagText(mod) + '</div>';
+
+  var toggleDiv = document.createElement('div');
+  toggleDiv.className = 'settings-mod-toggle';
+
+  row.appendChild(thumbImg);
+  row.appendChild(infoDiv);
+  row.appendChild(toggleDiv);
+
+  row.onclick = function() {
+    var idx = pendingMods.indexOf(mod.id);
+    if (idx !== -1) pendingMods.splice(idx, 1);
+    else pendingMods.push(mod.id);
+    renderSettingsMods();
+  };
+  container.appendChild(row);
+
+  // Probe for alt art; if found, insert the star button before the toggle
+  probeAltArt(mod.img, function(modClosure, thumbImgClosure, toggleDivClosure, rowClosure, exists) {
+    if (!exists) return;
+    var starBtn = document.createElement('div');
+    starBtn.className = 'alt-art-btn' + (getArtVariant(modClosure.id) === 'alt' ? ' active' : '');
+    starBtn.textContent = '★';
+    starBtn.onclick = function(e) {
+      e.stopPropagation();
+      var current = getArtVariant(modClosure.id);
+      var next = current === 'alt' ? 'default' : 'alt';
+      setArtVariant(modClosure.id, next);
+      thumbImgClosure.src = resolveArtPath(modClosure.img, modClosure.id);
+      starBtn.className = 'alt-art-btn' + (next === 'alt' ? ' active' : '');
+      // refresh the in-game mods drawer if this mod is currently enabled
+      if (MODS.some(function(m){ return m.id === modClosure.id; })) renderMods();
+    };
+    rowClosure.insertBefore(starBtn, toggleDivClosure);
+  }.bind(null, mod, thumbImg, toggleDiv, row));
+}
+
 function renderSettingsMods() {
   var list = document.getElementById('settingsModList');
+  var creatureList = document.getElementById('creatureModList');
   list.innerHTML = '';
+  creatureList.innerHTML = '';
+
   MOD_LIBRARY.forEach(function(mod) {
-    var isOn = pendingMods.indexOf(mod.id) !== -1;
-    var row = document.createElement('div');
-    row.className = 'settings-mod-row' + (isOn ? ' on' : '');
-    row.style.setProperty('--mc', mod.mc);
-    var tl = TOKEN_LIBRARY;
-    var tagText = 'tokens → 2× tokens';
-    if (mod.mechanic === 'manufactor') tagText = 'clue, food, & treasure → clue, food, & treasure × 3';
-    if (mod.mechanic === 'addToken')          tagText = 'tokens → tokens + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
-    if (mod.mechanic === 'addTokenIfPresent')  tagText = tl[mod.triggerTokenType].label.toLowerCase() + 's → ' + tl[mod.triggerTokenType].label.toLowerCase() + 's + 1';
-    if (mod.mechanic === 'replaceToken')      tagText = tl[mod.triggersOnType].label.toLowerCase() + ' → ' + tl[mod.triggersOnType].label.toLowerCase() + ' + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
-    if (mod.mechanic === 'vending')           tagText = 'sac a food: tapped treasure';
-    if (mod.mechanic === 'flitwing')          tagText = 'tokens → may become all clues';
-    if (mod.mechanic === 'predicateAdd')      tagText = (mod.conditionPredicate === 'isArtifact' ? 'artifact' : 'creature') + ' tokens → also + ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase();
-    if (mod.mechanic === 'wildcardReplace')   tagText = 'X tokens → X tokens + X ' + getTokenDisplayLabel(mod.addsTokenType).toLowerCase() + 's';
-    if (mod.mechanic === 'predicateMultiply') tagText = 'creature tokens → creature tokens × ' + mod.multiplyBy;
-
-    var thumbImg = document.createElement('img');
-    thumbImg.className = 'settings-mod-thumb';
-    thumbImg.alt = '';
-    thumbImg.onerror = function(){ thumbImg.style.background = '#1e2330'; };
-    thumbImg.src = resolveArtPath(mod.img, mod.id);
-
-    var infoDiv = document.createElement('div');
-    infoDiv.className = 'settings-mod-info';
-    infoDiv.innerHTML =
-      '<div class="settings-mod-name">' + mod.name + '</div>' +
-      '<div class="settings-mod-tag">' + tagText + '</div>';
-
-    var toggleDiv = document.createElement('div');
-    toggleDiv.className = 'settings-mod-toggle';
-
-    row.appendChild(thumbImg);
-    row.appendChild(infoDiv);
-    row.appendChild(toggleDiv);
-
-    row.onclick = function() {
-      var idx = pendingMods.indexOf(mod.id);
-      if (idx !== -1) pendingMods.splice(idx, 1);
-      else pendingMods.push(mod.id);
-      renderSettingsMods();
-    };
-    list.appendChild(row);
-
-    // Probe for alt art; if found, insert the star button before the toggle
-    probeAltArt(mod.img, function(modClosure, thumbImgClosure, toggleDivClosure, rowClosure, exists) {
-      if (!exists) return;
-      var starBtn = document.createElement('div');
-      starBtn.className = 'alt-art-btn' + (getArtVariant(modClosure.id) === 'alt' ? ' active' : '');
-      starBtn.textContent = '★';
-      starBtn.onclick = function(e) {
-        e.stopPropagation();
-        var current = getArtVariant(modClosure.id);
-        var next = current === 'alt' ? 'default' : 'alt';
-        setArtVariant(modClosure.id, next);
-        thumbImgClosure.src = resolveArtPath(modClosure.img, modClosure.id);
-        starBtn.className = 'alt-art-btn' + (next === 'alt' ? ' active' : '');
-        // refresh the in-game mods drawer if this mod is currently enabled
-        if (MODS.some(function(m){ return m.id === modClosure.id; })) renderMods();
-      };
-      rowClosure.insertBefore(starBtn, toggleDivClosure);
-    }.bind(null, mod, thumbImg, toggleDiv, row));
+    if (CREATURE_MOD_IDS.indexOf(mod.id) !== -1) {
+      buildModRow(mod, creatureList);
+    } else {
+      buildModRow(mod, list);
+    }
   });
+
+  var enabledCreatureCount = CREATURE_MOD_IDS.filter(function(id){ return pendingMods.indexOf(id) !== -1; }).length;
+  var label = 'Creature Token Modifiers' + (enabledCreatureCount > 0 ? ' (' + enabledCreatureCount + ' on)' : '');
+  document.getElementById('creatureToggleLabel').textContent = label;
+}
+
+function toggleCreatureSection() {
+  document.getElementById('creatureSectionToggle').classList.toggle('open');
+  document.getElementById('creatureModList').classList.toggle('open');
 }
 
 function saveSettings() {
